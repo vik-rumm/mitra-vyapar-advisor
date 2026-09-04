@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="vyapar-logo-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="50%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#9333EA" />
+    </linearGradient>
+  </defs>
+  <!-- Background Shield Emblem -->
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="url(#vyapar-logo-grad)" />
+  
+  <!-- Growth Trend Line & Arrow -->
+  <path d="M10 44L23 31L33 41L54 18" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M42 18H54V30" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- AI Gold Sparkle Star Accent -->
+  <circle cx="23" cy="31" r="3.5" fill="#FBBF24" />
+  <path d="M31 7C31 7 33 11 37 13C37 13 33 15 31 19C31 19 29 15 25 13C25 13 29 11 31 7Z" fill="#FBBF24" />
+  
+  <!-- Live Status Dot -->
+  <circle cx="52" cy="52" r="6" fill="#10B981" stroke="#FFFFFF" stroke-width="2" />
+</svg>

@@ -167,3 +167,44 @@
   background: var(--color-card);
   box-shadow: var(--card-shadow);
 }
+
+/* Printable Report Styles for Clean PDF / Paper Printing */
+@media print {
+  aside,
+  header.sticky,
+  button,
+  .no-print,
+  input,
+  select,
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  body,
+  div,
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .lg\:pl-\[250px\] {
+    padding-left: 0 !important;
+  }
+
+  .dashboard-card,
+  section {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1.2rem !important;
+    background: #ffffff !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

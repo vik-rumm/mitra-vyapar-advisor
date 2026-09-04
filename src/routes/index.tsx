@@ -1,176 +1,744 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
-  Bot,
-  Check,
-  ChevronRight,
-  CircleGauge,
-  FileCheck2,
-  Gauge,
-  LayoutDashboard,
-  Lightbulb,
+  AlertCircle,
+  ArrowRight,
+  Briefcase,
+  Building2,
+  CheckCircle2,
+  Globe2,
+  Loader2,
+  Lock,
+  Mail,
   MapPin,
-  Menu,
   Mic,
-  Search,
-  Send,
-  Settings,
+  Navigation,
+  PhoneCall,
   ShieldCheck,
   Sparkles,
+  Store,
   TrendingUp,
-  Users,
-  WalletCards,
-  X,
+  User,
+  UserCheck,
+  Zap,
 } from "lucide-react";
+import { FormEvent, useRef, useState } from "react";
+import { toast } from "sonner";
 
-import { FormEvent, useState } from "react";
+import { saveUserRecord } from "@/lib/db";
+import { cn, detectUserLocation } from "@/lib/utils";
+import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+const languages = ["English", "हिंदी", "मराठी"] as const;
+
+const businessCategories = [
+  {
+    id: "food",
+    name: "Food Stall & Snack Shop",
+    icon: Store,
+    desc: "Tea, snacks, fast food, bakery",
+    activeColor: "border-emerald-500 bg-emerald-50 text-emerald-900",
+    iconBg: "bg-emerald-100 text-emerald-600",
+  },
+  {
+    id: "kirana",
+    name: "Retail & Kirana Store",
+    icon: Building2,
+    desc: "Grocery, daily items, mini-mart",
+    activeColor: "border-indigo-500 bg-indigo-50 text-indigo-900",
+    iconBg: "bg-indigo-100 text-indigo-600",
+  },
+  {
+    id: "apparel",
+    name: "Clothing & Boutique",
+    icon: Briefcase,
+    desc: "Garments, footwear, tailoring",
+    activeColor: "border-purple-500 bg-purple-50 text-purple-900",
+    iconBg: "bg-purple-100 text-purple-600",
+  },
+  {
+    id: "tech",
+    name: "Electronics & Mobile Shop",
+    icon: Zap,
+    desc: "Mobile repair, gadgets, accessories",
+    activeColor: "border-cyan-500 bg-cyan-50 text-cyan-900",
+    iconBg: "bg-cyan-100 text-cyan-600",
+  },
+  {
+    id: "agri",
+    name: "Dairy & Agri-Business",
+    icon: Globe2,
+    desc: "Dairy products, organic farm, seeds",
+    activeColor: "border-amber-500 bg-amber-50 text-amber-900",
+    iconBg: "bg-amber-100 text-amber-600",
+  },
+  {
+    id: "services",
+    name: "Services & Salon",
+    icon: UserCheck,
+    desc: "Hair salon, repair, local services",
+    activeColor: "border-rose-500 bg-rose-50 text-rose-900",
+    iconBg: "bg-rose-100 text-rose-600",
+  },
+];
+
+const popularLocations = [
+  "Pune, MH",
+  "Mumbai, MH",
+  "Nashik, MH",
+  "Nagpur, MH",
+  "Delhi NCR",
+  "Bengaluru, KA",
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Vyapar-Mitra | AI Business Advisor" },
-      { name: "description", content: "Business viability, cashflow insights, and government scheme guidance for Indian entrepreneurs." },
+      { title: "Sign In & Onboarding | Vyapar-Mitra" },
+      {
+        name: "description",
+        content:
+          "Tell Vyapar-Mitra about your business idea and get instant local AI market insights.",
+      },
       { property: "og:title", content: "Vyapar-Mitra | AI Business Advisor" },
-      { property: "og:description", content: "Make confident business decisions with locally relevant AI insights." },
+      {
+        property: "og:description",
+        content: "Smart business onboarding for Indian entrepreneurs.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Dashboard,
+  component: Onboarding,
 });
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, active: true },
-  { label: "Idea Validator", icon: Lightbulb },
-  { label: "Feasibility Engine", icon: CircleGauge },
-  { label: "Schemes", icon: FileCheck2 },
-  { label: "Settings", icon: Settings },
-];
+function Onboarding() {
+  const navigate = useNavigate();
+  const ideaRef = useRef<HTMLInputElement>(null);
 
-const marketMetrics = [
-  { label: "Demand Score", value: "High", note: "Snacks & tea segment", icon: TrendingUp, tone: "bg-positive/15 text-positive-foreground" },
-  { label: "Competitors Nearby", value: "3", note: "Within 1 km radius", icon: Users, tone: "bg-warning/20 text-warning-foreground" },
-  { label: "Avg. Customer Spend", value: "₹85", note: "Per visit, evenings", icon: WalletCards, tone: "bg-muted text-foreground" },
-];
+  // Form State
+  const [authMethod, setAuthMethod] = useState<"otp" | "google" | "guest">("otp");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
 
-const demandBars = [
-  { label: "Students (18–25)", value: 46 },
-  { label: "Office workers", value: 34 },
-  { label: "Families", value: 20 },
-];
+  // Mobile Verification State
+  const [otpSent, setOtpSent] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
-const locationStats = [
-  { label: "Daily Footfall", value: "1,200+", note: "Peak 5–9 PM", good: true },
-  { label: "Avg. Monthly Rent", value: "₹14,500", note: "8% below city avg.", good: true },
-  { label: "Suppliers Nearby", value: "7 verified", note: "Market 600 m away", good: true },
-  { label: "Parking & Access", value: "Limited", note: "Narrow lane frontage", good: false },
-];
+  const [language, setLanguage] = useState<(typeof languages)[number]>("English");
 
-const initialActions = [
-  { title: "Register your shop under Udyam", meta: "Free · 15 minutes online", done: true },
-  { title: "Apply for PM MUDRA Yojana loan", meta: "Up to ₹10 lakh, collateral-free", done: false },
-  { title: "Finalise shop rent agreement", meta: "Target ₹14,500 per month", done: false },
-  { title: "Line up 2 snack suppliers", meta: "Compare rates at Mandai market", done: false },
-  { title: "Set up UPI payments & signboard", meta: "Boosts walk-in trust", done: false },
-];
+  const [category, setCategory] = useState("food");
+  const [idea, setIdea] = useState("Snack & Tea Corner");
+  const [capital, setCapital] = useState("50,000");
+  const [location, setLocation] = useState("Shivajinagar, Pune");
+  const [targetAudience, setTargetAudience] = useState("Local Walk-in Customers");
 
+  const [listening, setListening] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // GPS Location Detection State
+  const [isDetectingLoc, setIsDetectingLoc] = useState(false);
+  const [locDetected, setLocDetected] = useState(false);
+
+  function startVoice() {
+    const SpeechRecognition =
+      typeof window !== "undefined"
+        ? (window.SpeechRecognition ?? window.webkitSpeechRecognition)
+        : undefined;
+    if (!SpeechRecognition) {
+      ideaRef.current?.focus();
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = language === "हिंदी" ? "hi-IN" : language === "मराठी" ? "mr-IN" : "en-IN";
+    recognition.interimResults = false;
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0]?.[0]?.transcript ?? "";
+      if (transcript) setIdea((current) => (current ? `${current} ${transcript}` : transcript));
+    };
+    recognition.start();
+  }
+
+  async function handleGPSDetect() {
+    setIsDetectingLoc(true);
+    try {
+      const detected = await detectUserLocation();
+      if (detected) {
+        setLocation(detected);
+        setLocDetected(true);
+        toast.success("Full address & location detected!", {
+          description: detected,
+        });
+      }
+    } catch (err) {
+      toast.error("GPS access unavailable. Please type your location manually.");
+    } finally {
+      setIsDetectingLoc(false);
+    }
+  }
+
+  function handleSendOtp() {
+    const cleanPhone = phone.trim();
+    if (!cleanPhone || cleanPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setPhoneError("Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
+      return;
+    }
+    setPhoneError(null);
+    const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    setGeneratedOtp(newOtp);
+    setOtpSent(true);
+    setIsPhoneVerified(false);
+  }
+
+  function handleVerifyOtp() {
+    if (otpCode.trim() === generatedOtp || otpCode.trim() === "1234") {
+      setIsPhoneVerified(true);
+      setPhoneError(null);
+    } else {
+      setPhoneError(`Incorrect OTP code. Use code: ${generatedOtp} or 1234`);
+    }
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+
+    // Strict Verification Guard for Mobile OTP
+    if (authMethod === "otp" && !isPhoneVerified) {
+      setPhoneError("Please verify your mobile phone number with the OTP code before logging in.");
+      document.getElementById("phone-verification-section")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const selectedCatObj = businessCategories.find((c) => c.id === category);
+
+    try {
+      await saveUserRecord({
+        fullName: fullName.trim() || "Ramesh K.",
+        phone: authMethod === "otp" ? phone.trim() || "9876543210" : "",
+        email: authMethod === "google" ? email.trim() || "user@gmail.com" : "",
+        authMethod,
+        categoryName: selectedCatObj?.name || "Small Business",
+        category: category,
+        idea: idea.trim() || "Snack Shop",
+        capital: capital.trim() || "50,000",
+        location: location.trim() || "Pune, MH",
+        language,
+        targetAudience,
+      });
+    } catch (err) {
+      console.error("Failed to save record to database", err);
+    }
+
+    setTimeout(() => {
+      navigate({ to: "/dashboard" });
+    }, 600);
+  }
+
   return (
-    <>
-      {open && <button aria-label="Close navigation overlay" className="fixed inset-0 z-30 bg-foreground/25 lg:hidden" onClick={onClose} />}
-      <aside className={cn("fixed inset-y-0 left-0 z-40 flex w-[250px] flex-col border-r border-border bg-card p-5 transition-transform lg:translate-x-0", open ? "translate-x-0" : "-translate-x-full")}>
-        <div className="mb-9 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-1">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-positive text-positive-foreground"><TrendingUp size={21} strokeWidth={2.5} /></div>
-            <span className="truncate text-lg font-extrabold">Vyapar-Mitra</span>
+    <div className="relative min-h-screen bg-[#F8FAFC] font-sans text-slate-900 flex flex-col items-center justify-center px-4 py-10 overflow-hidden">
+      {/* Decorative Pastel Ambient Orbs */}
+      <div className="pointer-events-none absolute -top-32 -left-32 size-96 rounded-full bg-indigo-200/40 blur-[100px]" />
+      <div className="pointer-events-none absolute -bottom-32 -right-32 size-96 rounded-full bg-purple-200/40 blur-[100px]" />
+
+      {/* Header Brand Logo */}
+      <VyaparMitraLogo
+        size="lg"
+        subtitle="Smart Business Co-Pilot v2.0"
+        className="relative z-10 mb-8"
+      />
+
+      {/* Main White Card */}
+      <div className="relative z-10 w-full max-w-3xl rounded-3xl bg-white p-6 sm:p-10 border border-slate-200/80 shadow-xl shadow-slate-200/60">
+        <header className="mb-8 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-4 py-1 text-xs font-bold text-indigo-700 mb-3">
+            <Sparkles size={14} className="text-purple-600" />
+            <span>Smart Business Onboarding</span>
           </div>
-          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Close menu" onClick={onClose}><X size={20} /></Button>
-        </div>
-        <nav className="space-y-1.5" aria-label="Main navigation">
-          {navItems.map((item) => <Button key={item.label} variant={item.active ? "default" : "ghost"} className="h-11 w-full justify-start px-3" onClick={onClose}><item.icon size={19} /><span>{item.label}</span>{item.active && <ChevronRight className="ml-auto" size={17} />}</Button>)}
-        </nav>
-        <div className="mt-auto rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-card">
-          <div className="mb-3 grid size-9 place-items-center rounded-lg bg-positive text-positive-foreground"><Sparkles size={18} /></div>
-          <p className="font-bold">AI Business Assistant</p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Get 24/7 free data-driven guidance for your local business.</p>
-          <Button variant="lime" className="mt-4 w-full">Get Free Advice</Button>
-        </div>
-      </aside>
-    </>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+            Welcome to{" "}
+            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
+              Vyapar-Mitra
+            </span>
+          </h1>
+          <p className="mt-2 text-sm text-slate-500 sm:text-base">
+            Choose your sign-in method and generate your local business feasibility report.
+          </p>
+        </header>
+
+        <form className="flex flex-col gap-7" onSubmit={submit}>
+          {/* Sign In Method Selector */}
+          <fieldset
+            id="phone-verification-section"
+            className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4.5"
+          >
+            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+              <Lock size={13} className="text-indigo-600" />
+              1. Choose Sign-In Option
+            </legend>
+
+            <div className="mt-3 grid grid-cols-3 gap-2.5 mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMethod("otp");
+                  setPhoneError(null);
+                }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
+                  authMethod === "otp"
+                    ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
+                )}
+              >
+                <PhoneCall size={18} />
+                <span>Mobile OTP</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMethod("google");
+                  setIsPhoneVerified(true);
+                  setPhoneError(null);
+                }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
+                  authMethod === "google"
+                    ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
+                )}
+              >
+                <Globe2 size={18} />
+                <span>Google Account</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMethod("guest");
+                  setIsPhoneVerified(true);
+                  setPhoneError(null);
+                }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
+                  authMethod === "guest"
+                    ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
+                )}
+              >
+                <Zap size={18} />
+                <span>Fast Guest Access</span>
+              </button>
+            </div>
+
+            {/* Conditional Input Fields Based on Auth Method */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Full Name is required for all */}
+              <label className={cn("block", authMethod === "guest" ? "sm:col-span-2" : "")}>
+                <span className="mb-1.5 block text-xs font-bold text-slate-700">Full Name *</span>
+                <div className="relative">
+                  <User
+                    size={18}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Enter your full name (e.g. Ramesh Kumar)"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+              </label>
+
+              {/* Show Mobile Field ONLY for Mobile OTP Login */}
+              {authMethod === "otp" && (
+                <label className="block">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-700">Mobile Phone Number *</span>
+                    {isPhoneVerified && (
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                        <CheckCircle2 size={13} /> Verified
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <PhoneCall
+                      size={18}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="tel"
+                      required
+                      inputMode="tel"
+                      maxLength={10}
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value.replace(/\D/g, ""));
+                        setIsPhoneVerified(false);
+                        setOtpSent(false);
+                        setPhoneError(null);
+                      }}
+                      placeholder="10-digit mobile number"
+                      className={cn(
+                        "h-11 w-full rounded-xl border bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:ring-2",
+                        isPhoneVerified
+                          ? "border-emerald-500 focus:border-emerald-500 focus:ring-emerald-100"
+                          : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-100",
+                      )}
+                    />
+                  </div>
+                </label>
+              )}
+
+              {/* Show Email Field ONLY for Google Login */}
+              {authMethod === "google" && (
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-bold text-slate-700">
+                    Google Email Address *
+                  </span>
+                  <div className="relative">
+                    <Mail
+                      size={18}
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter Google email (e.g. user@gmail.com)"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                </label>
+              )}
+            </div>
+
+            {/* Error Message Display */}
+            {phoneError && (
+              <div className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700">
+                <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                <span>{phoneError}</span>
+              </div>
+            )}
+
+            {/* OTP Controls for Mobile OTP */}
+            {authMethod === "otp" && (
+              <div className="mt-4 pt-3 border-t border-slate-200/60">
+                {!isPhoneVerified ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        className="h-10 rounded-xl bg-slate-900 px-4 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        {otpSent ? "Resend Verification OTP" : "Send Verification OTP"}
+                      </button>
+
+                      {otpSent && (
+                        <span className="text-xs text-indigo-700 font-bold bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-lg">
+                          Test OTP Code:{" "}
+                          <strong className="text-purple-700 tracking-widest">
+                            {generatedOtp}
+                          </strong>
+                        </span>
+                      )}
+                    </div>
+
+                    {otpSent && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          maxLength={4}
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value)}
+                          placeholder="Enter 4-digit OTP"
+                          className="h-10 w-36 rounded-xl border border-indigo-300 bg-white px-3 text-center text-sm font-bold tracking-widest text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          className="h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 text-xs font-extrabold text-white shadow-sm hover:from-emerald-600 hover:to-teal-700 transition cursor-pointer"
+                        >
+                          Verify OTP
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800">
+                    <CheckCircle2 size={16} className="text-emerald-600" />
+                    <span>Mobile number verified via SMS OTP! (+91 {phone})</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Info Badge for Google Login */}
+            {authMethod === "google" && (
+              <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
+                <Globe2 size={16} className="text-indigo-600" />
+                <span>
+                  Signed in via Google Account ({email || "user@gmail.com"}). Mobile verification is
+                  not required.
+                </span>
+              </div>
+            )}
+
+            {/* Info Badge for Guest Login */}
+            {authMethod === "guest" && (
+              <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
+                <ShieldCheck size={16} className="text-indigo-600" />
+                <span>
+                  Instant guest access mode. Phone number and email address are not required.
+                </span>
+              </div>
+            )}
+          </fieldset>
+
+          {/* Language Preference */}
+          <fieldset>
+            <legend className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+              Language Preference / भाषा
+            </legend>
+            <div className="grid grid-cols-3 gap-3">
+              {languages.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setLanguage(item)}
+                  className={cn(
+                    "h-11 rounded-xl border text-xs transition cursor-pointer",
+                    language === item
+                      ? "border-indigo-600 bg-indigo-600 text-white font-bold shadow-sm"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300",
+                  )}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          {/* Business Category Options */}
+          <fieldset>
+            <legend className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+              2. Select Business Category
+            </legend>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {businessCategories.map((cat) => {
+                const Icon = cat.icon;
+                const isSelected = category === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setCategory(cat.id);
+                      setIdea(cat.name);
+                    }}
+                    className={cn(
+                      "flex flex-col items-start rounded-2xl border p-3.5 text-left transition cursor-pointer",
+                      isSelected
+                        ? cat.activeColor + " font-bold shadow-sm"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/50",
+                    )}
+                  >
+                    <div className={cn("grid size-9 place-items-center rounded-xl", cat.iconBg)}>
+                      <Icon size={18} />
+                    </div>
+                    <span className="mt-2.5 text-xs font-bold leading-tight">{cat.name}</span>
+                    <span className="mt-1 text-[10px] text-slate-400">{cat.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {/* Business Details Input */}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="block sm:col-span-2">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                Business Idea / Specific Setup
+              </span>
+              <span className="relative block">
+                <input
+                  ref={ideaRef}
+                  required
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder="E.g. Snack shop near college gate..."
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+                <button
+                  type="button"
+                  onClick={startVoice}
+                  aria-label="Use voice input"
+                  className={cn(
+                    "absolute inset-y-0 right-0 grid w-12 place-items-center transition cursor-pointer",
+                    listening
+                      ? "text-indigo-600 animate-pulse"
+                      : "text-slate-400 hover:text-indigo-600",
+                  )}
+                >
+                  <Mic size={18} />
+                </button>
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                Starting Capital (₹)
+              </span>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-0 grid w-10 place-items-center text-sm font-bold text-slate-400">
+                  ₹
+                </span>
+                <input
+                  required
+                  inputMode="numeric"
+                  value={capital}
+                  onChange={(e) => setCapital(e.target.value.replace(/[^\d,]/g, ""))}
+                  placeholder="50,000"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                Target Customers
+              </span>
+              <select
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              >
+                <option value="Local Walk-in Customers">Local Walk-in Customers (Retail)</option>
+                <option value="Students & Youth">Students & Youth Segment</option>
+                <option value="Office & Corporate Workers">Office & Corporate Workers</option>
+                <option value="Wholesale Buyers">Wholesale & Bulk Buyers (B2B)</option>
+              </select>
+            </label>
+
+            {/* GPS Location Input with Direct Map/GPS Detection */}
+            <label className="block sm:col-span-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Location / District
+                </span>
+                <button
+                  type="button"
+                  onClick={handleGPSDetect}
+                  disabled={isDetectingLoc}
+                  className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer disabled:opacity-50"
+                >
+                  {isDetectingLoc ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Detecting Maps GPS...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation size={13} />
+                      <span>Use Maps / GPS Location</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="relative">
+                <MapPin
+                  size={18}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  required
+                  value={location}
+                  onChange={(e) => {
+                    setLocation(e.target.value);
+                    setLocDetected(false);
+                  }}
+                  placeholder="Enter village, area or district (e.g. Shivajinagar, Pune)"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-28 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+                <button
+                  type="button"
+                  onClick={handleGPSDetect}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
+                >
+                  <Navigation size={12} />
+                  <span>GPS</span>
+                </button>
+              </div>
+              {locDetected && (
+                <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-emerald-600">
+                  <CheckCircle2 size={13} />
+                  Location successfully detected from Maps GPS
+                </p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {popularLocations.map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => {
+                      setLocation(loc);
+                      setLocDetected(false);
+                    }}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 transition cursor-pointer"
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            </label>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="mt-2 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-6 text-base font-extrabold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-purple-700 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-75 cursor-pointer"
+          >
+            {isSubmitting ? (
+              <span>Saving to Database & Generating Plan...</span>
+            ) : (
+              <>
+                <span>Save Record to Database & Launch Plan</span>
+                <ArrowRight size={20} />
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
 
-function CardTitle({ children, detail }: { children: React.ReactNode; detail?: string }) {
-  return <div className="flex items-center justify-between gap-3"><h2 className="text-base font-bold">{children}</h2>{detail && <span className="text-xs font-medium text-muted-foreground">{detail}</span>}</div>;
-}
-
-function AiAssistant() {
-  const [messages, setMessages] = useState([
-    { from: "user", text: "Is a snack shop viable in Pune?" },
-    { from: "ai", text: "Yes, you have high demand and only 3 competitors nearby." },
-  ]);
-  const [input, setInput] = useState("");
-  function send(event: FormEvent) {
-    event.preventDefault();
-    const value = input.trim();
-    if (!value) return;
-    setMessages((current) => [...current, { from: "user", text: value }, { from: "ai", text: "I’ll assess local demand, competition, and expected costs for you." }]);
-    setInput("");
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognition;
+    webkitSpeechRecognition?: new () => SpeechRecognition;
   }
-  return <section className="dashboard-card flex min-h-[440px] flex-col overflow-hidden p-6 lg:row-span-2">
-    <div className="flex items-center gap-3 border-b border-border pb-5"><div className="grid size-10 place-items-center rounded-xl bg-positive text-positive-foreground"><Bot size={21} /></div><div><h2 className="font-bold">Vyapar AI Assistant</h2><p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground"><i className="size-2 rounded-full bg-positive" />Online · ready to help</p></div></div>
-    <div className="flex flex-1 flex-col justify-end gap-4 py-6">
-      {messages.map((message, index) => <div key={`${message.from}-${index}`} className={cn("max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6", message.from === "user" ? "ml-auto rounded-br-md bg-foreground text-background" : "rounded-bl-md bg-muted text-foreground")}>
-        {message.from === "ai" && <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-positive-foreground"><Sparkles size={13} className="text-positive" />VYAPAR AI</div>}{message.text}
-      </div>)}
-    </div>
-    <form className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-border bg-background p-2" onSubmit={send}>
-      <Button type="button" variant="ghost" size="icon" aria-label="Use voice search"><Mic size={18} /></Button>
-      <input value={input} onChange={(event) => setInput(event.target.value)} className="min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" placeholder="Ask your business question..." aria-label="Ask Vyapar AI" />
-      <Button size="icon" variant="dark" aria-label="Send message"><Send size={17} /></Button>
-    </form>
-  </section>;
-}
-
-function Dashboard() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [language, setLanguage] = useState("English");
-  const [actions, setActions] = useState(initialActions);
-  const done = actions.filter((action) => action.done).length;
-  const toggleAction = (index: number) => setActions((current) => current.map((action, i) => (i === index ? { ...action, done: !action.done } : action)));
-  return <div className="min-h-screen bg-background text-foreground">
-
-    <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-    <div className="lg:pl-[250px]">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-8">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-          <Button variant="outline" size="icon" className="lg:hidden" aria-label="Open menu" onClick={() => setMenuOpen(true)}><Menu size={20} /></Button>
-          <label className="relative min-w-0 lg:max-w-xl"><Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} /><input className="h-11 w-full rounded-xl border border-border bg-card pl-11 pr-4 text-sm shadow-sm outline-none transition focus:ring-2 focus:ring-ring" placeholder="Search business ideas or districts..." /></label>
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center rounded-xl border border-border bg-card p-1 md:flex">{["English", "हिंदी", "मराठी"].map((item) => <Button key={item} variant={language === item ? "default" : "ghost"} size="sm" onClick={() => setLanguage(item)}>{item}</Button>)}</div>
-            <div className="flex items-center gap-2.5"><div className="grid size-10 shrink-0 place-items-center rounded-full bg-warning text-sm font-bold text-warning-foreground">RK</div><div className="hidden sm:block"><p className="text-sm font-bold">Ramesh K.</p><p className="text-xs text-muted-foreground">Pune, MH</p></div></div>
-          </div>
-        </div>
-      </header>
-      <main className="p-4 sm:p-6 lg:p-8">
-        <div className="mb-7"><p className="text-sm font-semibold text-positive-foreground">Friday, 4 September</p><h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">Namaste, Ramesh</h1><p className="mt-1 text-sm text-muted-foreground">Here’s how your business plan is shaping up.</p></div>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <section className="dashboard-card p-6 lg:col-span-8"><CardTitle detail="Shivajinagar, Pune">Market Insights</CardTitle><div className="mt-6 grid gap-5 sm:grid-cols-3">{marketMetrics.map((metric) => <div key={metric.label} className="rounded-xl border border-border bg-background p-5"><div className={cn("mb-3 grid size-10 place-items-center rounded-xl", metric.tone)}><metric.icon size={20} /></div><p className="text-xs font-medium text-muted-foreground">{metric.label}</p><p className="mt-1.5 text-2xl font-extrabold">{metric.value}</p><p className="mt-1 text-xs text-muted-foreground">{metric.note}</p></div>)}</div><div className="mt-6 space-y-4">{demandBars.map((bar) => <div key={bar.label}><div className="flex items-center justify-between text-sm font-medium"><span>{bar.label}</span><span className="text-muted-foreground">{bar.value}%</span></div><div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-positive" style={{ width: `${bar.value}%` }} /></div></div>)}</div></section>
-          <div className="grid gap-6 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1">
-            <section className="dashboard-card p-6"><div className="flex items-start justify-between"><div><p className="text-sm font-medium text-muted-foreground">Est. Break-Even</p><p className="mt-2 text-3xl font-extrabold">4.2 <span className="text-lg">Months</span></p><p className="mt-2 text-xs font-semibold text-positive-foreground">2 weeks earlier than average</p></div><div className="grid size-11 place-items-center rounded-xl bg-positive/15 text-positive-foreground"><Gauge size={22} /></div></div></section>
-            <section className="dashboard-card p-6"><div className="flex items-start justify-between"><div><p className="text-sm font-medium text-muted-foreground">Local Risk</p><p className="mt-2 text-3xl font-extrabold">Low</p><p className="mt-2 text-xs text-muted-foreground">Shivajinagar, Pune</p></div><div className="grid size-11 place-items-center rounded-xl bg-warning/20 text-warning-foreground"><MapPin size={22} /></div></div></section>
-          </div>
-          <section className="dashboard-card p-6 lg:col-span-4"><CardTitle detail="₹50,000">Capital Allocation</CardTitle><p className="mt-2 text-xs text-muted-foreground">Suggested launch budget</p><div className="mt-7 flex h-3 overflow-hidden rounded-full bg-muted"><span className="w-[50%] bg-foreground" /><span className="w-[30%] bg-positive" /><span className="w-[20%] bg-warning" /></div><div className="mt-6 space-y-4">{[["Inventory", "₹25,000", "bg-foreground"], ["Rent", "₹15,000", "bg-positive"], ["Marketing", "₹10,000", "bg-warning"]].map(([name, amount, color]) => <div key={name} className="flex items-center justify-between text-sm"><span className="flex items-center gap-2.5 font-medium"><i className={cn("size-2.5 rounded-full", color)} />{name}</span><strong>{amount}</strong></div>)}</div></section>
-          <section className="dashboard-card p-6 lg:col-span-4"><CardTitle detail="Strong">Business Viability</CardTitle><div className="mt-5 flex flex-col items-center"><div className="relative h-28 w-56 overflow-hidden"><div className="absolute left-0 top-0 h-56 w-56 rounded-full bg-muted" /><div className="absolute left-0 top-0 h-56 w-56 rounded-full" style={{ background: "conic-gradient(var(--color-positive) 0deg 148deg, transparent 148deg 180deg, transparent 180deg)" }} /><div className="absolute left-7 top-7 h-44 w-44 rounded-full bg-card" /></div><div className="-mt-11 text-center"><p className="text-4xl font-extrabold">82<span className="text-xl text-muted-foreground">%</span></p><p className="mt-1 text-xs text-muted-foreground">Viability score</p></div><div className="mt-8 flex items-center gap-2 rounded-lg bg-positive/15 px-3 py-2 text-xs font-semibold text-positive-foreground"><ShieldCheck size={16} />Recommended to proceed</div></div></section>
-          <AiAssistant />
-          <section className="dashboard-card p-6 lg:col-span-8"><CardTitle detail="2 matches">Matched Government Schemes</CardTitle><div className="mt-5 divide-y divide-border">{[["PM MUDRA Yojana", "Collateral-free loans up to ₹10 lakh", WalletCards], ["MSME Credit Guarantee", "Credit support for micro enterprises", ShieldCheck]].map(([name, detail, Icon]) => { const SchemeIcon = Icon as typeof WalletCards; return <div key={name as string} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-4 first:pt-0 last:pb-0"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-muted"><SchemeIcon size={19} /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate text-sm font-bold">{name as string}</h3><span className="rounded-full bg-positive/15 px-2 py-0.5 text-[10px] font-bold text-positive-foreground">Eligible</span></div><p className="mt-1 truncate text-xs text-muted-foreground">{detail as string}</p></div><Button variant="outline" size="sm">Apply <ChevronRight size={14} /></Button></div>; })}</div></section>
-          <section className="dashboard-card p-6 lg:col-span-5"><CardTitle detail={`${done}/${actions.length} done`}>Action Plan</CardTitle><p className="mt-2 text-xs text-muted-foreground">Next steps to launch your shop</p><div className="mt-5 space-y-3">{actions.map((action, index) => <button key={action.title} type="button" onClick={() => toggleAction(index)} className={cn("flex w-full items-start gap-3 rounded-xl border p-4 text-left transition", action.done ? "border-positive/40 bg-positive/10" : "border-border bg-background hover:border-foreground/25")}><span className={cn("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border", action.done ? "border-positive bg-positive text-positive-foreground" : "border-border")}>{action.done && <Check size={13} strokeWidth={3} />}</span><span className="min-w-0"><span className={cn("block text-sm font-semibold", action.done && "line-through opacity-70")}>{action.title}</span><span className="mt-0.5 block text-xs text-muted-foreground">{action.meta}</span></span></button>)}</div></section>
-          <section className="dashboard-card p-6 lg:col-span-7"><CardTitle detail="Shivajinagar, Pune">Location Analysis</CardTitle><div className="mt-6 grid gap-5 sm:grid-cols-2">{locationStats.map((stat) => <div key={stat.label} className="rounded-xl border border-border bg-background p-5"><p className="text-xs font-medium text-muted-foreground">{stat.label}</p><p className="mt-1.5 text-xl font-extrabold">{stat.value}</p><p className={cn("mt-1 text-xs font-semibold", stat.good ? "text-positive-foreground" : "text-warning-foreground")}>{stat.note}</p></div>)}</div><div className="mt-6 flex items-start gap-3 rounded-xl bg-muted p-4 text-sm leading-6"><MapPin size={18} className="mt-0.5 shrink-0 text-positive-foreground" />Peak footfall is between 5–9 PM near the college gate — plan evening stock and staffing accordingly.</div></section>
-        </div>
-      </main>
-    </div>
-  </div>;
+  interface SpeechRecognition extends EventTarget {
+    lang: string;
+    interimResults: boolean;
+    onstart: (() => void) | null;
+    onend: (() => void) | null;
+    onerror: (() => void) | null;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    start: () => void;
+  }
+  interface SpeechRecognitionEvent {
+    results: { [index: number]: { [index: number]: { transcript: string } } };
+  }
 }

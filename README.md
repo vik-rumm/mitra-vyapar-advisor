@@ -36,11 +36,11 @@ Layout Structure:
 
    - Left Card (col-span-8): "Projected Cashflow Overview". Show a clean bar chart with lime green and yellow bars representing income vs expenses over 6 months.
 
-   - Right Cards (col-span-4): Two stacked small cards. 
+   - Right Cards (col-span-4): Two stacked small cards.
 
-     * Top: "Est. Break-Even: 4.2 Months" (big bold number). 
+     - Top: "Est. Break-Even: 4.2 Months" (big bold number).
 
-     * Bottom: "Local Risk: Low" with a map pin icon.
+     - Bottom: "Local Risk: Low" with a map pin icon.
 
    ROW 2 (Insights & AI):
 
