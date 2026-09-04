@@ -104,19 +104,6 @@ function CardTitle({ children, detail }: { children: React.ReactNode; detail?: s
   return <div className="flex items-center justify-between gap-3"><h2 className="text-base font-bold">{children}</h2>{detail && <span className="text-xs font-medium text-muted-foreground">{detail}</span>}</div>;
 }
 
-function CashflowChart() {
-  return <div className="mt-6">
-    <div className="mb-5 flex items-center gap-5 text-xs font-medium text-muted-foreground"><span className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-chart-income" />Income</span><span className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-chart-expense" />Expenses</span></div>
-    <div className="relative h-44 border-b border-border">
-      <div className="absolute inset-0 flex flex-col justify-between"><i className="border-t border-dashed border-border" /><i className="border-t border-dashed border-border" /><i className="border-t border-dashed border-border" /><i /></div>
-      <div className="absolute inset-0 flex items-end justify-around gap-3 px-1">
-        {months.map((month) => <div key={month.name} className="flex h-full flex-1 items-end justify-center gap-1.5"><div className="w-full max-w-5 rounded-t-md bg-chart-income" style={{ height: `${month.income}%` }} /><div className="w-full max-w-5 rounded-t-md bg-chart-expense" style={{ height: `${month.expense}%` }} /></div>)}
-      </div>
-    </div>
-    <div className="mt-3 flex justify-around text-[11px] font-medium text-muted-foreground">{months.map((month) => <span key={month.name}>{month.name}</span>)}</div>
-  </div>;
-}
-
 function AiAssistant() {
   const [messages, setMessages] = useState([
     { from: "user", text: "Is a snack shop viable in Pune?" },
