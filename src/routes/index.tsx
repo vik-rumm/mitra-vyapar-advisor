@@ -46,14 +46,33 @@ const navItems = [
   { label: "Settings", icon: Settings },
 ];
 
-const months = [
-  { name: "Oct", income: 54, expense: 36 },
-  { name: "Nov", income: 66, expense: 42 },
-  { name: "Dec", income: 60, expense: 46 },
-  { name: "Jan", income: 76, expense: 49 },
-  { name: "Feb", income: 84, expense: 53 },
-  { name: "Mar", income: 94, expense: 57 },
+const marketMetrics = [
+  { label: "Demand Score", value: "High", note: "Snacks & tea segment", icon: TrendingUp, tone: "bg-positive/15 text-positive-foreground" },
+  { label: "Competitors Nearby", value: "3", note: "Within 1 km radius", icon: Users, tone: "bg-warning/20 text-warning-foreground" },
+  { label: "Avg. Customer Spend", value: "₹85", note: "Per visit, evenings", icon: WalletCards, tone: "bg-muted text-foreground" },
 ];
+
+const demandBars = [
+  { label: "Students (18–25)", value: 46 },
+  { label: "Office workers", value: 34 },
+  { label: "Families", value: 20 },
+];
+
+const locationStats = [
+  { label: "Daily Footfall", value: "1,200+", note: "Peak 5–9 PM", good: true },
+  { label: "Avg. Monthly Rent", value: "₹14,500", note: "8% below city avg.", good: true },
+  { label: "Suppliers Nearby", value: "7 verified", note: "Market 600 m away", good: true },
+  { label: "Parking & Access", value: "Limited", note: "Narrow lane frontage", good: false },
+];
+
+const initialActions = [
+  { title: "Register your shop under Udyam", meta: "Free · 15 minutes online", done: true },
+  { title: "Apply for PM MUDRA Yojana loan", meta: "Up to ₹10 lakh, collateral-free", done: false },
+  { title: "Finalise shop rent agreement", meta: "Target ₹14,500 per month", done: false },
+  { title: "Line up 2 snack suppliers", meta: "Compare rates at Mandai market", done: false },
+  { title: "Set up UPI payments & signboard", meta: "Boosts walk-in trust", done: false },
+];
+
 
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
