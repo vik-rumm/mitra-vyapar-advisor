@@ -70,11 +70,11 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         <nav className="space-y-1.5" aria-label="Main navigation">
           {navItems.map((item) => <Button key={item.label} variant={item.active ? "default" : "ghost"} className="h-11 w-full justify-start px-3" onClick={onClose}><item.icon size={19} /><span>{item.label}</span>{item.active && <ChevronRight className="ml-auto" size={17} />}</Button>)}
         </nav>
-        <div className="mt-auto rounded-2xl bg-foreground p-5 text-background shadow-card">
+        <div className="mt-auto rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-card">
           <div className="mb-3 grid size-9 place-items-center rounded-lg bg-positive text-positive-foreground"><Sparkles size={18} /></div>
-          <p className="font-bold">Upgrade to Advisor Pro</p>
-          <p className="mt-1 text-xs leading-5 text-background/65">Unlock detailed forecasts and unlimited AI guidance.</p>
-          <Button variant="lime" className="mt-4 w-full">Upgrade now</Button>
+          <p className="font-bold">AI Business Assistant</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Get 24/7 free data-driven guidance for your local business.</p>
+          <Button variant="lime" className="mt-4 w-full">Get Free Advice</Button>
         </div>
       </aside>
     </>
