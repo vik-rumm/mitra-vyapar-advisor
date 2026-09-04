@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Bot,
+  Check,
   ChevronRight,
   CircleGauge,
   FileCheck2,
@@ -16,9 +17,11 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  Users,
   WalletCards,
   X,
 } from "lucide-react";
+
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
