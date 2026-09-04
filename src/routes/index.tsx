@@ -135,7 +135,11 @@ function AiAssistant() {
 function Dashboard() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [language, setLanguage] = useState("English");
+  const [actions, setActions] = useState(initialActions);
+  const done = actions.filter((action) => action.done).length;
+  const toggleAction = (index: number) => setActions((current) => current.map((action, i) => (i === index ? { ...action, done: !action.done } : action)));
   return <div className="min-h-screen bg-background text-foreground">
+
     <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
     <div className="lg:pl-[250px]">
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-4 backdrop-blur-md sm:px-6 lg:px-8">
