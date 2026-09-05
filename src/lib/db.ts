@@ -39,8 +39,10 @@ function getDB() {
   return dbPromise;
 }
 
+import { syncUserToSupabase, fetchUserFromSupabase } from "./supabase";
+
 /**
- * Save or Update a User Record in Database
+ * Save or Update a User Record in Database (Hybrid Offline IndexedDB + Supabase Cloud)
  */
 export async function saveUserRecord(
   data: Omit<UserRecord, "id" | "createdAt" | "updatedAt"> & {
@@ -59,7 +61,7 @@ export async function saveUserRecord(
     updatedAt: now,
   };
 
-  // 1. Save to IndexedDB
+  // 1. Save to IndexedDB (Instant Local)
   try {
     const db = await getDB();
     if (db) {
@@ -91,11 +93,14 @@ export async function saveUserRecord(
     }
   }
 
+  // 3. Background Cloud Sync to Supabase PostgreSQL
+  syncUserToSupabase(record).catch((e) => console.warn("Supabase background sync notice", e));
+
   return record;
 }
 
 /**
- * Fetch Current Active User Record
+ * Fetch Current Active User Record (LocalStorage -> IndexedDB -> Supabase Cloud)
  */
 export async function getCurrentUserRecord(): Promise<UserRecord | null> {
   if (typeof window === "undefined") return null;
@@ -112,15 +117,27 @@ export async function getCurrentUserRecord(): Promise<UserRecord | null> {
   }
 
   // 2. Check IndexedDB
+  const activeId = localStorage.getItem(CURRENT_USER_KEY);
   try {
     const db = await getDB();
-    const activeId = localStorage.getItem(CURRENT_USER_KEY);
     if (db && activeId) {
       const record = await db.get(STORE_NAME, activeId);
       if (record) return record as UserRecord;
     }
   } catch (err) {
     console.warn("IndexedDB fetch error", err);
+  }
+
+  // 3. Fallback: Fetch from Supabase Cloud if local cache is empty
+  if (activeId) {
+    const cloudUser = await fetchUserFromSupabase(activeId);
+    if (cloudUser) {
+      // Re-populate local cache
+      try {
+        localStorage.setItem("vyapar_user_profile", JSON.stringify(cloudUser));
+      } catch (e) {}
+      return cloudUser;
+    }
   }
 
   return null;
