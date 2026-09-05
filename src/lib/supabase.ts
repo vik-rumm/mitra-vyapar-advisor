@@ -127,7 +127,9 @@ export async function syncDailyPnlToSupabase(
 /**
  * Send Phone SMS OTP via Supabase Auth (with Demo Fallback for local development)
  */
-export async function sendPhoneOtp(phone: string): Promise<{ success: boolean; message: string; requiresSmsProvider?: boolean }> {
+export async function sendPhoneOtp(
+  phone: string,
+): Promise<{ success: boolean; message: string; requiresSmsProvider?: boolean }> {
   const cleanDigits = phone.replace(/\D/g, "");
   const formattedPhone = cleanDigits.length === 10 ? `+91${cleanDigits}` : `+${cleanDigits}`;
 

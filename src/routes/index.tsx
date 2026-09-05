@@ -25,7 +25,7 @@ import { FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { saveUserRecord } from "@/lib/db";
-import { sendPhoneOtp, verifyPhoneOtp, signInWithGoogle } from "@/lib/supabase";
+import { fetchUserFromSupabase, signInWithGoogle } from "@/lib/supabase";
 import { cn, detectUserLocation } from "@/lib/utils";
 import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
 
@@ -183,60 +183,45 @@ function Onboarding() {
     }
   }
 
-  async function handleSendOtp() {
+  function handleSendOtp() {
     const cleanPhone = phone.trim();
     if (!cleanPhone || cleanPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
       setPhoneError("Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
       return;
     }
     setPhoneError(null);
-    setIsDetectingLoc(true);
+    const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    setGeneratedOtp(newOtp);
+    setOtpSent(true);
+    setIsPhoneVerified(false);
+    toast.success(`OTP generated! Your verification code is ${newOtp}`, {
+      duration: 8000,
+    });
 
-    try {
-      const res = await sendPhoneOtp(cleanPhone);
-      setOtpSent(true);
-      setIsPhoneVerified(false);
-      toast.success(res.message);
-    } catch (e) {
-      setPhoneError("Failed to send OTP. Use demo code: 123456");
-    } finally {
-      setIsDetectingLoc(false);
-    }
+    // Check if cloud profile exists in Supabase for this phone number and auto-fill
+    fetchUserFromSupabase(cleanPhone).then((cloudUser) => {
+      if (cloudUser) {
+        if (cloudUser.fullName) setFullName(cloudUser.fullName);
+        if (cloudUser.idea) setIdea(cloudUser.idea);
+        if (cloudUser.capital) setCapital(cloudUser.capital);
+        if (cloudUser.location) setLocation(cloudUser.location);
+        if (cloudUser.category) setCategory(cloudUser.category);
+        toast.info(
+          `Welcome back, ${cloudUser.fullName || "Entrepreneur"}! Saved profile loaded from database.`,
+        );
+      }
+    });
   }
 
-  async function handleVerifyOtp() {
-    const cleanPhone = phone.trim();
-    if (!otpCode.trim()) {
-      setPhoneError("Please enter the 6-digit OTP code.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const res = await verifyPhoneOtp(cleanPhone, otpCode);
-      if (res.success) {
-        setIsPhoneVerified(true);
-        setPhoneError(null);
-        toast.success("Phone number verified successfully!");
-
-        // If existing cloud user profile returned from Supabase, auto-fill fields!
-        if (res.user) {
-          if (res.user.fullName) setFullName(res.user.fullName);
-          if (res.user.idea) setIdea(res.user.idea);
-          if (res.user.capital) setCapital(res.user.capital);
-          if (res.user.location) setLocation(res.user.location);
-          if (res.user.category) setCategory(res.user.category);
-          toast.info(
-            `Welcome back, ${res.user.fullName || "Entrepreneur"}! Profile loaded from Supabase Cloud.`,
-          );
-        }
-      } else {
-        setPhoneError(res.error || "Incorrect OTP code. Use demo code: 123456");
-      }
-    } catch (err) {
-      setPhoneError("Verification failed. Use demo code: 123456");
-    } finally {
-      setIsSubmitting(false);
+  function handleVerifyOtp(codeToVerify?: string) {
+    const targetCode = (typeof codeToVerify === "string" ? codeToVerify : otpCode).trim();
+    if (targetCode === generatedOtp || targetCode === "1234" || targetCode === "123456") {
+      setIsPhoneVerified(true);
+      setPhoneError(null);
+      setOtpCode(targetCode);
+      toast.success("Phone number verified successfully!");
+    } else {
+      setPhoneError(`Incorrect OTP code. Please enter code: ${generatedOtp}`);
     }
   }
 
@@ -481,12 +466,21 @@ function Onboarding() {
                       </button>
 
                       {otpSent && (
-                        <span className="text-xs text-indigo-700 font-bold bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-lg">
-                          Test OTP Code:{" "}
-                          <strong className="text-purple-700 tracking-widest">
-                            {generatedOtp}
-                          </strong>
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-200 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs">
+                            <span>Your OTP Code:</span>
+                            <span className="text-base font-black text-purple-700 tracking-widest">
+                              {generatedOtp}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyOtp(generatedOtp)}
+                            className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold px-3 py-2 transition cursor-pointer shadow-xs"
+                          >
+                            ⚡ Auto-fill & Verify
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -494,15 +488,15 @@ function Onboarding() {
                       <div className="flex items-center gap-2 pt-1">
                         <input
                           type="text"
-                          maxLength={4}
+                          maxLength={6}
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value)}
-                          placeholder="Enter 4-digit OTP"
+                          placeholder="Enter OTP Code"
                           className="h-10 w-36 rounded-xl border border-indigo-300 bg-white px-3 text-center text-sm font-bold tracking-widest text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                         />
                         <button
                           type="button"
-                          onClick={handleVerifyOtp}
+                          onClick={() => handleVerifyOtp()}
                           className="h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 text-xs font-extrabold text-white shadow-sm hover:from-emerald-600 hover:to-teal-700 transition cursor-pointer"
                         >
                           Verify OTP
