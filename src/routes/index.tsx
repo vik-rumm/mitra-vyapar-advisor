@@ -8,24 +8,27 @@ import {
   Globe2,
   Loader2,
   Lock,
+  LogIn,
   Mail,
   MapPin,
   Mic,
   Navigation,
   PhoneCall,
+  RefreshCw,
+  Search,
   ShieldCheck,
   Sparkles,
   Store,
-  TrendingUp,
   User,
   UserCheck,
+  UserPlus,
   Zap,
 } from "lucide-react";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { saveUserRecord } from "@/lib/db";
-import { fetchUserFromSupabase, signInWithGoogle } from "@/lib/supabase";
+import { getCurrentUserRecord, saveUserRecord, UserRecord } from "@/lib/db";
+import { fetchUserFromSupabase, signOutUser } from "@/lib/supabase";
 import { cn, detectUserLocation } from "@/lib/utils";
 import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
 
@@ -94,16 +97,16 @@ const popularLocations = [
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sign In & Onboarding | Vyapar-Mitra" },
+      { title: "Sign In & Log In | Vyapar-Mitra AI" },
       {
         name: "description",
         content:
-          "Tell Vyapar-Mitra about your business idea and get instant local AI market insights.",
+          "Log in to your business account or create a new profile for instant local AI market insights.",
       },
       { property: "og:title", content: "Vyapar-Mitra | AI Business Advisor" },
       {
         property: "og:description",
-        content: "Smart business onboarding for Indian entrepreneurs.",
+        content: "Smart business onboarding and login for Indian entrepreneurs.",
       },
       { property: "og:type", content: "website" },
     ],
@@ -115,13 +118,34 @@ function Onboarding() {
   const navigate = useNavigate();
   const ideaRef = useRef<HTMLInputElement>(null);
 
-  // Form State
+  // Active Tab Mode: Log In vs Sign Up
+  const [authTab, setAuthTab] = useState<"login" | "signup">("login");
+
+  // Active Session State (if already logged in)
+  const [activeSession, setActiveSession] = useState<UserRecord | null>(null);
+
+  // -------------------------------------------------------------
+  // LOG IN STATE
+  // -------------------------------------------------------------
+  const [loginPhone, setLoginPhone] = useState("");
+  const [isSearchingAccount, setIsSearchingAccount] = useState(false);
+  const [foundAccount, setFoundAccount] = useState<UserRecord | null>(null);
+  const [accountNotFound, setAccountNotFound] = useState(false);
+
+  const [loginOtpSent, setLoginOtpSent] = useState(false);
+  const [loginGeneratedOtp, setLoginGeneratedOtp] = useState("");
+  const [loginOtpCode, setLoginOtpCode] = useState("");
+  const [isLoginVerified, setIsLoginVerified] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // -------------------------------------------------------------
+  // SIGN UP STATE
+  // -------------------------------------------------------------
   const [authMethod, setAuthMethod] = useState<"otp" | "google" | "guest">("otp");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
-  // Mobile Verification State
   const [otpSent, setOtpSent] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -142,6 +166,15 @@ function Onboarding() {
   // GPS Location Detection State
   const [isDetectingLoc, setIsDetectingLoc] = useState(false);
   const [locDetected, setLocDetected] = useState(false);
+
+  // Check for active session on load
+  useEffect(() => {
+    getCurrentUserRecord().then((user) => {
+      if (user) {
+        setActiveSession(user);
+      }
+    });
+  }, []);
 
   function startVoice() {
     const SpeechRecognition =
@@ -183,7 +216,85 @@ function Onboarding() {
     }
   }
 
-  function handleSendOtp() {
+  // -------------------------------------------------------------
+  // LOG IN LOGIC
+  // -------------------------------------------------------------
+  async function handleFindAccountAndSendOtp() {
+    const cleanPhone = loginPhone.trim().replace(/\D/g, "");
+    if (!cleanPhone || cleanPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setLoginError("Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
+      return;
+    }
+
+    setLoginError(null);
+    setAccountNotFound(false);
+    setIsSearchingAccount(true);
+
+    try {
+      // 1. Search database (Supabase & local IndexedDB)
+      const cloudUser = await fetchUserFromSupabase(cleanPhone);
+
+      if (cloudUser) {
+        setFoundAccount(cloudUser);
+        const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        setLoginGeneratedOtp(newOtp);
+        setLoginOtpSent(true);
+        setIsLoginVerified(false);
+        toast.success(`Account found for ${cloudUser.fullName}! OTP code is ${newOtp}`, {
+          duration: 8000,
+        });
+      } else {
+        setFoundAccount(null);
+        setAccountNotFound(true);
+        toast.error(`No account found registered with mobile number +91 ${cleanPhone}.`);
+      }
+    } catch (err) {
+      setLoginError("Error querying database. Please try again.");
+    } finally {
+      setIsSearchingAccount(false);
+    }
+  }
+
+  function handleVerifyLoginOtp(codeToVerify?: string) {
+    const targetCode = (typeof codeToVerify === "string" ? codeToVerify : loginOtpCode).trim();
+    if (targetCode === loginGeneratedOtp || targetCode === "1234" || targetCode === "123456") {
+      setIsLoginVerified(true);
+      setLoginError(null);
+      setLoginOtpCode(targetCode);
+      toast.success("OTP Code Verified!");
+    } else {
+      setLoginError(`Incorrect OTP code. Enter ${loginGeneratedOtp}`);
+    }
+  }
+
+  async function handleCompleteLogin(e: FormEvent) {
+    e.preventDefault();
+    if (!foundAccount) {
+      setLoginError("No account selected for login.");
+      return;
+    }
+    if (!isLoginVerified) {
+      setLoginError("Please verify the OTP code before logging in.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await saveUserRecord(foundAccount);
+      toast.success(`Welcome back, ${foundAccount.fullName}! Logging in...`);
+      setTimeout(() => {
+        navigate({ to: "/dashboard" });
+      }, 500);
+    } catch (err) {
+      toast.error("Failed to complete login.");
+      setIsSubmitting(false);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // SIGN UP LOGIC
+  // -------------------------------------------------------------
+  function handleSendSignUpOtp() {
     const cleanPhone = phone.trim();
     if (!cleanPhone || cleanPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
       setPhoneError("Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
@@ -197,23 +308,9 @@ function Onboarding() {
     toast.success(`OTP generated! Your verification code is ${newOtp}`, {
       duration: 8000,
     });
-
-    // Check if cloud profile exists in Supabase for this phone number and auto-fill
-    fetchUserFromSupabase(cleanPhone).then((cloudUser) => {
-      if (cloudUser) {
-        if (cloudUser.fullName) setFullName(cloudUser.fullName);
-        if (cloudUser.idea) setIdea(cloudUser.idea);
-        if (cloudUser.capital) setCapital(cloudUser.capital);
-        if (cloudUser.location) setLocation(cloudUser.location);
-        if (cloudUser.category) setCategory(cloudUser.category);
-        toast.info(
-          `Welcome back, ${cloudUser.fullName || "Entrepreneur"}! Saved profile loaded from database.`,
-        );
-      }
-    });
   }
 
-  function handleVerifyOtp(codeToVerify?: string) {
+  function handleVerifySignUpOtp(codeToVerify?: string) {
     const targetCode = (typeof codeToVerify === "string" ? codeToVerify : otpCode).trim();
     if (targetCode === generatedOtp || targetCode === "1234" || targetCode === "123456") {
       setIsPhoneVerified(true);
@@ -225,12 +322,12 @@ function Onboarding() {
     }
   }
 
-  async function submit(event: FormEvent) {
+  async function submitSignUp(event: FormEvent) {
     event.preventDefault();
 
     // Strict Verification Guard for Mobile OTP
     if (authMethod === "otp" && !isPhoneVerified) {
-      setPhoneError("Please verify your mobile phone number with the OTP code before logging in.");
+      setPhoneError("Please verify your mobile phone number with the OTP code before submitting.");
       document.getElementById("phone-verification-section")?.scrollIntoView({ behavior: "smooth" });
       return;
     }
@@ -252,6 +349,7 @@ function Onboarding() {
         language,
         targetAudience,
       });
+      toast.success("Profile created successfully in Supabase database!");
     } catch (err) {
       console.error("Failed to save record to database", err);
     }
@@ -259,6 +357,12 @@ function Onboarding() {
     setTimeout(() => {
       navigate({ to: "/dashboard" });
     }, 600);
+  }
+
+  async function handleSignOutActiveSession() {
+    await signOutUser();
+    setActiveSession(null);
+    toast.info("Signed out from active session.");
   }
 
   return (
@@ -271,15 +375,54 @@ function Onboarding() {
       <VyaparMitraLogo
         size="lg"
         subtitle="Smart Business Co-Pilot v2.0"
-        className="relative z-10 mb-8"
+        className="relative z-10 mb-6"
       />
+
+      {/* Active Returning Session Banner (if logged in) */}
+      {activeSession && (
+        <div className="relative z-10 w-full max-w-3xl mb-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-900 p-4 text-white shadow-lg">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 place-items-center rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300">
+                <User size={20} />
+              </div>
+              <div>
+                <p className="text-xs text-indigo-300 font-semibold uppercase tracking-wider">
+                  Active Session Detected
+                </p>
+                <h3 className="text-sm font-bold text-white">
+                  {activeSession.fullName} &bull;{" "}
+                  <span className="text-indigo-200">{activeSession.idea || "Business"}</span>
+                </h3>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/dashboard" })}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-extrabold px-4 py-2 transition cursor-pointer shadow-md"
+              >
+                <span>Go to Dashboard</span>
+                <ArrowRight size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOutActiveSession}
+                className="rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-semibold px-3 py-2 transition cursor-pointer"
+              >
+                Switch Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main White Card */}
       <div className="relative z-10 w-full max-w-3xl rounded-3xl bg-white p-6 sm:p-10 border border-slate-200/80 shadow-xl shadow-slate-200/60">
-        <header className="mb-8 text-center">
+        <header className="mb-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-4 py-1 text-xs font-bold text-indigo-700 mb-3">
             <Sparkles size={14} className="text-purple-600" />
-            <span>Smart Business Onboarding</span>
+            <span>AI Business Authentication</span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
             Welcome to{" "}
@@ -288,109 +431,60 @@ function Onboarding() {
             </span>
           </h1>
           <p className="mt-2 text-sm text-slate-500 sm:text-base">
-            Choose your sign-in method and generate your local business feasibility report.
+            Log in to access your business advisor dashboard or sign up for a new AI feasibility
+            plan.
           </p>
         </header>
 
-        <form className="flex flex-col gap-7" onSubmit={submit}>
-          {/* Sign In Method Selector */}
-          <fieldset
-            id="phone-verification-section"
-            className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4.5"
+        {/* Dual Mode Segmented Tab Selector */}
+        <div className="mb-8 grid grid-cols-2 rounded-2xl bg-slate-100 p-1.5 border border-slate-200/70">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthTab("login");
+              setLoginError(null);
+            }}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-extrabold transition cursor-pointer",
+              authTab === "login"
+                ? "bg-white text-indigo-700 shadow-md shadow-slate-200"
+                : "text-slate-500 hover:text-slate-900",
+            )}
           >
-            <legend className="px-2 text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
-              <Lock size={13} className="text-indigo-600" />
-              1. Choose Sign-In Option
-            </legend>
+            <LogIn size={18} />
+            <span>🔑 Existing User (Log In)</span>
+          </button>
 
-            <div className="mt-3 grid grid-cols-3 gap-2.5 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMethod("otp");
-                  setPhoneError(null);
-                }}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
-                  authMethod === "otp"
-                    ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
-                )}
-              >
-                <PhoneCall size={18} />
-                <span>Mobile OTP</span>
-              </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthTab("signup");
+              setPhoneError(null);
+            }}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-extrabold transition cursor-pointer",
+              authTab === "signup"
+                ? "bg-white text-indigo-700 shadow-md shadow-slate-200"
+                : "text-slate-500 hover:text-slate-900",
+            )}
+          >
+            <UserPlus size={18} />
+            <span>✨ New User (Sign Up)</span>
+          </button>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMethod("google");
-                  setIsPhoneVerified(true);
-                  setPhoneError(null);
-                }}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
-                  authMethod === "google"
-                    ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
-                )}
-              >
-                <Globe2 size={18} />
-                <span>Google Account</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMethod("guest");
-                  setIsPhoneVerified(true);
-                  setPhoneError(null);
-                }}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
-                  authMethod === "guest"
-                    ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
-                )}
-              >
-                <Zap size={18} />
-                <span>Fast Guest Access</span>
-              </button>
-            </div>
-
-            {/* Conditional Input Fields Based on Auth Method */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* Full Name is required for all */}
-              <label className={cn("block", authMethod === "guest" ? "sm:col-span-2" : "")}>
-                <span className="mb-1.5 block text-xs font-bold text-slate-700">Full Name *</span>
-                <div className="relative">
-                  <User
-                    size={18}
-                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name (e.g. Ramesh Kumar)"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                  />
-                </div>
-              </label>
-
-              {/* Show Mobile Field ONLY for Mobile OTP Login */}
-              {authMethod === "otp" && (
-                <label className="block">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-slate-700">Mobile Phone Number *</span>
-                    {isPhoneVerified && (
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
-                        <CheckCircle2 size={13} /> Verified
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
+        {/* ========================================================================= */}
+        {/* LOG IN FORM */}
+        {/* ========================================================================= */}
+        {authTab === "login" && (
+          <form className="flex flex-col gap-6" onSubmit={handleCompleteLogin}>
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-indigo-900">
+                  Enter Registered Mobile Number *
+                </span>
+                <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                  <div className="relative w-full">
                     <PhoneCall
                       size={18}
                       className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
@@ -400,355 +494,651 @@ function Onboarding() {
                       required
                       inputMode="tel"
                       maxLength={10}
-                      value={phone}
+                      value={loginPhone}
                       onChange={(e) => {
-                        setPhone(e.target.value.replace(/\D/g, ""));
-                        setIsPhoneVerified(false);
-                        setOtpSent(false);
-                        setPhoneError(null);
+                        setLoginPhone(e.target.value.replace(/\D/g, ""));
+                        setFoundAccount(null);
+                        setAccountNotFound(false);
+                        setLoginOtpSent(false);
+                        setIsLoginVerified(false);
+                        setLoginError(null);
                       }}
-                      placeholder="10-digit mobile number"
-                      className={cn(
-                        "h-11 w-full rounded-xl border bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:ring-2",
-                        isPhoneVerified
-                          ? "border-emerald-500 focus:border-emerald-500 focus:ring-emerald-100"
-                          : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-100",
-                      )}
+                      placeholder="Enter 10-digit mobile number"
+                      className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
-                </label>
+                  <button
+                    type="button"
+                    onClick={handleFindAccountAndSendOtp}
+                    disabled={isSearchingAccount || !loginPhone}
+                    className="flex h-12 w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-700 transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isSearchingAccount ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Searching Database...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search size={16} />
+                        <span>Find Account & Send OTP</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </label>
+
+              {/* Login Error Notification */}
+              {loginError && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700">
+                  <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                  <span>{loginError}</span>
+                </div>
               )}
 
-              {/* Show Email Field ONLY for Google Login */}
-              {authMethod === "google" && (
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-bold text-slate-700">
-                    Google Email Address *
-                  </span>
+              {/* Account Not Found Warning Card */}
+              {accountNotFound && (
+                <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-slate-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={20} className="shrink-0 text-amber-600 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-extrabold text-amber-900 uppercase tracking-wider">
+                        No Account Found for +91 {loginPhone}
+                      </h4>
+                      <p className="mt-1 text-xs text-amber-800">
+                        This mobile number is not yet registered in our database. Click below to
+                        switch to Sign Up mode and setup your business details.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhone(loginPhone);
+                          setAuthTab("signup");
+                          setAccountNotFound(false);
+                        }}
+                        className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 transition cursor-pointer shadow-xs"
+                      >
+                        <span>Switch to Sign Up & Register</span>
+                        <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Found Account Preview Card */}
+              {foundAccount && (
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4.5 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="grid size-9 place-items-center rounded-full bg-emerald-100 text-emerald-700 font-black text-sm">
+                        {foundAccount.fullName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-sm font-extrabold text-slate-900">
+                            {foundAccount.fullName}
+                          </h4>
+                          <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                            Account Found
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          +91 {foundAccount.phone || loginPhone} &bull; {foundAccount.language}
+                        </p>
+                      </div>
+                    </div>
+                    <CheckCircle2 size={20} className="text-emerald-600" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-3">
+                    <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Business Idea
+                      </span>
+                      <span className="font-semibold text-slate-800">{foundAccount.idea}</span>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-2 border border-slate-100">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Location
+                      </span>
+                      <span className="font-semibold text-slate-800">{foundAccount.location}</span>
+                    </div>
+                  </div>
+
+                  {/* OTP Verification for Login */}
+                  {loginOtpSent && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+                      {!isLoginVerified ? (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-200 px-3 py-1.5 text-xs font-bold text-purple-900">
+                              <span>Verification OTP:</span>
+                              <span className="text-base font-black text-purple-700 tracking-widest">
+                                {loginGeneratedOtp}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyLoginOtp(loginGeneratedOtp)}
+                              className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold px-3 py-2 transition cursor-pointer shadow-xs"
+                            >
+                              ⚡ Auto-fill Code & Verify
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              value={loginOtpCode}
+                              onChange={(e) => setLoginOtpCode(e.target.value)}
+                              placeholder="Enter OTP"
+                              className="h-10 w-36 rounded-xl border border-indigo-300 bg-white px-3 text-center text-sm font-bold tracking-widest text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyLoginOtp()}
+                              className="h-10 rounded-xl bg-emerald-600 px-4 text-xs font-extrabold text-white hover:bg-emerald-700 transition cursor-pointer"
+                            >
+                              Verify OTP
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs font-bold text-emerald-800">
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                          <span>OTP Verified! Ready to Log In.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Submit Log In Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting || !foundAccount || !isLoginVerified}
+              className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-6 text-base font-extrabold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-purple-700 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <span>Restoring Session & Opening Dashboard...</span>
+              ) : (
+                <>
+                  <span>Log In to Dashboard</span>
+                  <ArrowRight size={20} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SIGN UP FORM */}
+        {/* ========================================================================= */}
+        {authTab === "signup" && (
+          <form className="flex flex-col gap-7" onSubmit={submitSignUp}>
+            {/* Sign In Method Selector */}
+            <fieldset
+              id="phone-verification-section"
+              className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4.5"
+            >
+              <legend className="px-2 text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                <Lock size={13} className="text-indigo-600" />
+                1. Choose Sign-In Option
+              </legend>
+
+              <div className="mt-3 grid grid-cols-3 gap-2.5 mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("otp");
+                    setPhoneError(null);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
+                    authMethod === "otp"
+                      ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
+                  )}
+                >
+                  <PhoneCall size={18} />
+                  <span>Mobile OTP</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("google");
+                    setIsPhoneVerified(true);
+                    setPhoneError(null);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
+                    authMethod === "google"
+                      ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
+                  )}
+                >
+                  <Globe2 size={18} />
+                  <span>Google Account</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("guest");
+                    setIsPhoneVerified(true);
+                    setPhoneError(null);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-xs font-bold transition cursor-pointer",
+                    authMethod === "guest"
+                      ? "border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/30",
+                  )}
+                >
+                  <Zap size={18} />
+                  <span>Fast Guest Access</span>
+                </button>
+              </div>
+
+              {/* Conditional Input Fields Based on Auth Method */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Full Name */}
+                <label className={cn("block", authMethod === "guest" ? "sm:col-span-2" : "")}>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-700">Full Name *</span>
                   <div className="relative">
-                    <Mail
+                    <User
                       size={18}
                       className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                     />
                     <input
-                      type="email"
+                      type="text"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter Google email (e.g. user@gmail.com)"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name (e.g. Ramesh Kumar)"
                       className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
                 </label>
-              )}
-            </div>
 
-            {/* Error Message Display */}
-            {phoneError && (
-              <div className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700">
-                <AlertCircle size={16} className="shrink-0 text-rose-600" />
-                <span>{phoneError}</span>
+                {/* Show Mobile Field ONLY for Mobile OTP */}
+                {authMethod === "otp" && (
+                  <label className="block">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-slate-700">
+                        Mobile Phone Number *
+                      </span>
+                      {isPhoneVerified && (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                          <CheckCircle2 size={13} /> Verified
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <PhoneCall
+                        size={18}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+                      <input
+                        type="tel"
+                        required
+                        inputMode="tel"
+                        maxLength={10}
+                        value={phone}
+                        onChange={(e) => {
+                          setPhone(e.target.value.replace(/\D/g, ""));
+                          setIsPhoneVerified(false);
+                          setOtpSent(false);
+                          setPhoneError(null);
+                        }}
+                        placeholder="10-digit mobile number"
+                        className={cn(
+                          "h-11 w-full rounded-xl border bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:ring-2",
+                          isPhoneVerified
+                            ? "border-emerald-500 focus:border-emerald-500 focus:ring-emerald-100"
+                            : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-100",
+                        )}
+                      />
+                    </div>
+                  </label>
+                )}
+
+                {/* Show Email Field ONLY for Google Login */}
+                {authMethod === "google" && (
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-slate-700">
+                      Google Email Address *
+                    </span>
+                    <div className="relative">
+                      <Mail
+                        size={18}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                      />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter Google email (e.g. user@gmail.com)"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      />
+                    </div>
+                  </label>
+                )}
               </div>
-            )}
 
-            {/* OTP Controls for Mobile OTP */}
-            {authMethod === "otp" && (
-              <div className="mt-4 pt-3 border-t border-slate-200/60">
-                {!isPhoneVerified ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={handleSendOtp}
-                        className="h-10 rounded-xl bg-slate-900 px-4 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer"
-                      >
-                        {otpSent ? "Resend Verification OTP" : "Send Verification OTP"}
-                      </button>
+              {/* Error Message Display */}
+              {phoneError && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700">
+                  <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                  <span>{phoneError}</span>
+                </div>
+              )}
+
+              {/* OTP Controls for Mobile OTP */}
+              {authMethod === "otp" && (
+                <div className="mt-4 pt-3 border-t border-slate-200/60">
+                  {!isPhoneVerified ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={handleSendSignUpOtp}
+                          className="h-10 rounded-xl bg-slate-900 px-4 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer"
+                        >
+                          {otpSent ? "Resend Verification OTP" : "Send Verification OTP"}
+                        </button>
+
+                        {otpSent && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-200 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs">
+                              <span>Your OTP Code:</span>
+                              <span className="text-base font-black text-purple-700 tracking-widest">
+                                {generatedOtp}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleVerifySignUpOtp(generatedOtp)}
+                              className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold px-3 py-2 transition cursor-pointer shadow-xs"
+                            >
+                              ⚡ Auto-fill & Verify
+                            </button>
+                          </div>
+                        )}
+                      </div>
 
                       {otpSent && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-200 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs">
-                            <span>Your OTP Code:</span>
-                            <span className="text-base font-black text-purple-700 tracking-widest">
-                              {generatedOtp}
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={otpCode}
+                            onChange={(e) => setOtpCode(e.target.value)}
+                            placeholder="Enter OTP Code"
+                            className="h-10 w-36 rounded-xl border border-indigo-300 bg-white px-3 text-center text-sm font-bold tracking-widest text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                          />
                           <button
                             type="button"
-                            onClick={() => handleVerifyOtp(generatedOtp)}
-                            className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold px-3 py-2 transition cursor-pointer shadow-xs"
+                            onClick={() => handleVerifySignUpOtp()}
+                            className="h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 text-xs font-extrabold text-white shadow-sm hover:from-emerald-600 hover:to-teal-700 transition cursor-pointer"
                           >
-                            ⚡ Auto-fill & Verify
+                            Verify OTP
                           </button>
                         </div>
                       )}
                     </div>
-
-                    {otpSent && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="text"
-                          maxLength={6}
-                          value={otpCode}
-                          onChange={(e) => setOtpCode(e.target.value)}
-                          placeholder="Enter OTP Code"
-                          className="h-10 w-36 rounded-xl border border-indigo-300 bg-white px-3 text-center text-sm font-bold tracking-widest text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleVerifyOtp()}
-                          className="h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 text-xs font-extrabold text-white shadow-sm hover:from-emerald-600 hover:to-teal-700 transition cursor-pointer"
-                        >
-                          Verify OTP
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800">
-                    <CheckCircle2 size={16} className="text-emerald-600" />
-                    <span>Mobile number verified via SMS OTP! (+91 {phone})</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Info Badge for Google Login */}
-            {authMethod === "google" && (
-              <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
-                <Globe2 size={16} className="text-indigo-600" />
-                <span>
-                  Signed in via Google Account ({email || "user@gmail.com"}). Mobile verification is
-                  not required.
-                </span>
-              </div>
-            )}
-
-            {/* Info Badge for Guest Login */}
-            {authMethod === "guest" && (
-              <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
-                <ShieldCheck size={16} className="text-indigo-600" />
-                <span>
-                  Instant guest access mode. Phone number and email address are not required.
-                </span>
-              </div>
-            )}
-          </fieldset>
-
-          {/* Language Preference */}
-          <fieldset>
-            <legend className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-              Language Preference / भाषा
-            </legend>
-            <div className="grid grid-cols-3 gap-3">
-              {languages.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setLanguage(item)}
-                  className={cn(
-                    "h-11 rounded-xl border text-xs transition cursor-pointer",
-                    language === item
-                      ? "border-indigo-600 bg-indigo-600 text-white font-bold shadow-sm"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300",
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {/* Business Category Options */}
-          <fieldset>
-            <legend className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-              2. Select Business Category
-            </legend>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {businessCategories.map((cat) => {
-                const Icon = cat.icon;
-                const isSelected = category === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => {
-                      setCategory(cat.id);
-                      setIdea(cat.name);
-                    }}
-                    className={cn(
-                      "flex flex-col items-start rounded-2xl border p-3.5 text-left transition cursor-pointer",
-                      isSelected
-                        ? cat.activeColor + " font-bold shadow-sm"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/50",
-                    )}
-                  >
-                    <div className={cn("grid size-9 place-items-center rounded-xl", cat.iconBg)}>
-                      <Icon size={18} />
-                    </div>
-                    <span className="mt-2.5 text-xs font-bold leading-tight">{cat.name}</span>
-                    <span className="mt-1 text-[10px] text-slate-400">{cat.desc}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          {/* Business Details Input */}
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Business Idea / Specific Setup
-              </span>
-              <span className="relative block">
-                <input
-                  ref={ideaRef}
-                  required
-                  value={idea}
-                  onChange={(e) => setIdea(e.target.value)}
-                  placeholder="E.g. Snack shop near college gate..."
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-                <button
-                  type="button"
-                  onClick={startVoice}
-                  aria-label="Use voice input"
-                  className={cn(
-                    "absolute inset-y-0 right-0 grid w-12 place-items-center transition cursor-pointer",
-                    listening
-                      ? "text-indigo-600 animate-pulse"
-                      : "text-slate-400 hover:text-indigo-600",
-                  )}
-                >
-                  <Mic size={18} />
-                </button>
-              </span>
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Starting Capital (₹)
-              </span>
-              <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-0 grid w-10 place-items-center text-sm font-bold text-slate-400">
-                  ₹
-                </span>
-                <input
-                  required
-                  inputMode="numeric"
-                  value={capital}
-                  onChange={(e) => setCapital(e.target.value.replace(/[^\d,]/g, ""))}
-                  placeholder="50,000"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Target Customers
-              </span>
-              <select
-                value={targetAudience}
-                onChange={(e) => setTargetAudience(e.target.value)}
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              >
-                <option value="Local Walk-in Customers">Local Walk-in Customers (Retail)</option>
-                <option value="Students & Youth">Students & Youth Segment</option>
-                <option value="Office & Corporate Workers">Office & Corporate Workers</option>
-                <option value="Wholesale Buyers">Wholesale & Bulk Buyers (B2B)</option>
-              </select>
-            </label>
-
-            {/* GPS Location Input with Direct Map/GPS Detection */}
-            <label className="block sm:col-span-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Location / District
-                </span>
-                <button
-                  type="button"
-                  onClick={handleGPSDetect}
-                  disabled={isDetectingLoc}
-                  className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer disabled:opacity-50"
-                >
-                  {isDetectingLoc ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" />
-                      <span>Detecting Maps GPS...</span>
-                    </>
                   ) : (
-                    <>
-                      <Navigation size={13} />
-                      <span>Use Maps / GPS Location</span>
-                    </>
+                    <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800">
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                      <span>Mobile number verified via SMS OTP! (+91 {phone})</span>
+                    </div>
                   )}
-                </button>
-              </div>
-              <div className="relative">
-                <MapPin
-                  size={18}
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  required
-                  value={location}
-                  onChange={(e) => {
-                    setLocation(e.target.value);
-                    setLocDetected(false);
-                  }}
-                  placeholder="Enter village, area or district (e.g. Shivajinagar, Pune)"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-28 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                />
-                <button
-                  type="button"
-                  onClick={handleGPSDetect}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
-                >
-                  <Navigation size={12} />
-                  <span>GPS</span>
-                </button>
-              </div>
-              {locDetected && (
-                <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-emerald-600">
-                  <CheckCircle2 size={13} />
-                  Location successfully detected from Maps GPS
-                </p>
+                </div>
               )}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {popularLocations.map((loc) => (
+
+              {/* Info Badge for Google Login */}
+              {authMethod === "google" && (
+                <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
+                  <Globe2 size={16} className="text-indigo-600" />
+                  <span>
+                    Signed in via Google Account ({email || "user@gmail.com"}). Mobile verification
+                    is not required.
+                  </span>
+                </div>
+              )}
+
+              {/* Info Badge for Guest Login */}
+              {authMethod === "guest" && (
+                <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-indigo-600" />
+                  <span>
+                    Instant guest access mode. Phone number and email address are not required.
+                  </span>
+                </div>
+              )}
+            </fieldset>
+
+            {/* Language Preference */}
+            <fieldset>
+              <legend className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+                Language Preference / भाषा
+              </legend>
+              <div className="grid grid-cols-3 gap-3">
+                {languages.map((item) => (
                   <button
-                    key={loc}
+                    key={item}
                     type="button"
-                    onClick={() => {
-                      setLocation(loc);
-                      setLocDetected(false);
-                    }}
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 transition cursor-pointer"
+                    onClick={() => setLanguage(item)}
+                    className={cn(
+                      "h-11 rounded-xl border text-xs transition cursor-pointer",
+                      language === item
+                        ? "border-indigo-600 bg-indigo-600 text-white font-bold shadow-sm"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300",
+                    )}
                   >
-                    {loc}
+                    {item}
                   </button>
                 ))}
               </div>
-            </label>
-          </div>
+            </fieldset>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="mt-2 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-6 text-base font-extrabold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-purple-700 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-75 cursor-pointer"
-          >
-            {isSubmitting ? (
-              <span>Saving to Database & Generating Plan...</span>
-            ) : (
-              <>
-                <span>Save Record to Database & Launch Plan</span>
-                <ArrowRight size={20} />
-              </>
-            )}
-          </button>
-        </form>
+            {/* Business Category Options */}
+            <fieldset>
+              <legend className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+                2. Select Business Category
+              </legend>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {businessCategories.map((cat) => {
+                  const Icon = cat.icon;
+                  const isSelected = category === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setCategory(cat.id);
+                        setIdea(cat.name);
+                      }}
+                      className={cn(
+                        "flex flex-col items-start rounded-2xl border p-3.5 text-left transition cursor-pointer",
+                        isSelected
+                          ? cat.activeColor + " font-bold shadow-sm"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/50",
+                      )}
+                    >
+                      <div className={cn("grid size-9 place-items-center rounded-xl", cat.iconBg)}>
+                        <Icon size={18} />
+                      </div>
+                      <span className="mt-2.5 text-xs font-bold leading-tight">{cat.name}</span>
+                      <span className="mt-1 text-[10px] text-slate-400">{cat.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            {/* Business Details Input */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Business Idea / Specific Setup
+                </span>
+                <span className="relative block">
+                  <input
+                    ref={ideaRef}
+                    required
+                    value={idea}
+                    onChange={(e) => setIdea(e.target.value)}
+                    placeholder="E.g. Snack shop near college gate..."
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={startVoice}
+                    aria-label="Use voice input"
+                    className={cn(
+                      "absolute inset-y-0 right-0 grid w-12 place-items-center transition cursor-pointer",
+                      listening
+                        ? "text-indigo-600 animate-pulse"
+                        : "text-slate-400 hover:text-indigo-600",
+                    )}
+                  >
+                    <Mic size={18} />
+                  </button>
+                </span>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Starting Capital (₹)
+                </span>
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-0 grid w-10 place-items-center text-sm font-bold text-slate-400">
+                    ₹
+                  </span>
+                  <input
+                    required
+                    inputMode="numeric"
+                    value={capital}
+                    onChange={(e) => setCapital(e.target.value.replace(/[^\d,]/g, ""))}
+                    placeholder="50,000"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Target Customers
+                </span>
+                <select
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value)}
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                >
+                  <option value="Local Walk-in Customers">Local Walk-in Customers (Retail)</option>
+                  <option value="Students & Youth">Students & Youth Segment</option>
+                  <option value="Office & Corporate Workers">Office & Corporate Workers</option>
+                  <option value="Wholesale Buyers">Wholesale & Bulk Buyers (B2B)</option>
+                </select>
+              </label>
+
+              {/* GPS Location Input */}
+              <label className="block sm:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Location / District
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleGPSDetect}
+                    disabled={isDetectingLoc}
+                    className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isDetectingLoc ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>Detecting Maps GPS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Navigation size={13} />
+                        <span>Use Maps / GPS Location</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="relative">
+                  <MapPin
+                    size={18}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    required
+                    value={location}
+                    onChange={(e) => {
+                      setLocation(e.target.value);
+                      setLocDetected(false);
+                    }}
+                    placeholder="Enter village, area or district (e.g. Shivajinagar, Pune)"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-28 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGPSDetect}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
+                  >
+                    <Navigation size={12} />
+                    <span>GPS</span>
+                  </button>
+                </div>
+                {locDetected && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-emerald-600">
+                    <CheckCircle2 size={13} />
+                    Location successfully detected from Maps GPS
+                  </p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {popularLocations.map((loc) => (
+                    <button
+                      key={loc}
+                      type="button"
+                      onClick={() => {
+                        setLocation(loc);
+                        setLocDetected(false);
+                      }}
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 transition cursor-pointer"
+                    >
+                      {loc}
+                    </button>
+                  ))}
+                </div>
+              </label>
+            </div>
+
+            {/* Submit Sign Up Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-2 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 px-6 text-base font-extrabold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-700 hover:to-purple-700 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-75 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <span>Saving to Database & Generating Plan...</span>
+              ) : (
+                <>
+                  <span>Create Account & Launch Business Plan</span>
+                  <ArrowRight size={20} />
+                </>
+              )}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
