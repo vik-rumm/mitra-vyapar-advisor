@@ -127,7 +127,7 @@ export async function syncDailyPnlToSupabase(
 /**
  * Send Phone SMS OTP via Supabase Auth (with Demo Fallback for local development)
  */
-export async function sendPhoneOtp(phone: string): Promise<{ success: boolean; message: string }> {
+export async function sendPhoneOtp(phone: string): Promise<{ success: boolean; message: string; requiresSmsProvider?: boolean }> {
   const cleanDigits = phone.replace(/\D/g, "");
   const formattedPhone = cleanDigits.length === 10 ? `+91${cleanDigits}` : `+${cleanDigits}`;
 
@@ -144,16 +144,27 @@ export async function sendPhoneOtp(phone: string): Promise<{ success: boolean; m
     });
 
     if (error) {
-      console.warn("Supabase Auth OTP notice (using demo OTP fallback 123456):", error.message);
+      console.warn("Supabase Auth OTP Notice:", error.message);
+      if (
+        error.message.toLowerCase().includes("provider") ||
+        error.message.toLowerCase().includes("not enabled") ||
+        error.message.toLowerCase().includes("disabled")
+      ) {
+        return {
+          success: true,
+          requiresSmsProvider: true,
+          message: "SMS Provider pending in Supabase Dashboard. Use Demo OTP Code: 123456",
+        };
+      }
       return {
-        success: true,
-        message: "SMS Provider pending setup. Use Demo OTP Code: 123456",
+        success: false,
+        message: error.message || "Failed to send SMS OTP",
       };
     }
 
     return {
       success: true,
-      message: `OTP sent successfully to ${formattedPhone}`,
+      message: `📱 Real SMS OTP sent successfully to ${formattedPhone}! Check your phone.`,
     };
   } catch (err) {
     return {
