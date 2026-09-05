@@ -9,10 +9,6 @@ import {
   FileCheck,
   ChevronRight,
   BrainCircuit,
-  RotateCcw,
-  Check,
-  ArrowRight,
-  Store,
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserRecord, saveUserRecord } from "@/lib/db";
@@ -62,7 +58,7 @@ export function AiProfileTrainerWidget({
   const questions = [
     {
       id: "premises",
-      title: "1. What is your operating premises type?",
+      title: "What is your operating premises type?",
       icon: Building2,
       subtitle: "Helps AI calculate exact monthly rent, electricity & overhead economics.",
       options: [
@@ -76,7 +72,7 @@ export function AiProfileTrainerWidget({
     },
     {
       id: "goal",
-      title: "2. What is your target monthly net profit goal?",
+      title: "What is your target monthly net profit goal?",
       icon: TrendingUp,
       subtitle: "Helps AI compute daily item sales volume needed to reach your income goal.",
       options: [
@@ -90,7 +86,7 @@ export function AiProfileTrainerWidget({
     },
     {
       id: "challenge",
-      title: "3. What is your biggest daily business bottleneck?",
+      title: "What is your biggest daily business bottleneck?",
       icon: ShieldAlert,
       subtitle: "AI will prioritize recommendations to solve your top friction point first.",
       options: [
@@ -104,7 +100,7 @@ export function AiProfileTrainerWidget({
     },
     {
       id: "competitors",
-      title: "4. How many direct competitors operate within 1-2 km?",
+      title: "How many direct competitors operate within 1-2 km?",
       icon: Users,
       subtitle: "Helps AI gauge pricing pressure and differentiation strategy.",
       options: [
@@ -117,7 +113,7 @@ export function AiProfileTrainerWidget({
     },
     {
       id: "compliance",
-      title: "5. What digital & legal registrations do you have active?",
+      title: "What digital & legal registrations do you have active?",
       icon: FileCheck,
       subtitle: "Helps AI suggest exact missing schemes & licenses (FSSAI, Udyam, GST).",
       options: [
@@ -156,126 +152,120 @@ export function AiProfileTrainerWidget({
     }
   }
 
-  const q = questions[currentStep] || questions[0];
+  const q = (questions[currentStep] ?? questions[0])!;
   const Icon = q.icon;
 
   return (
-    <div
+    <section
       className={cn(
-        "rounded-3xl border border-purple-200/90 bg-gradient-to-br from-purple-950 via-slate-900 to-indigo-950 p-6 text-white shadow-xl shadow-purple-950/20",
+        "dashboard-card p-6 border border-purple-200/80 bg-gradient-to-br from-purple-50/40 via-white to-slate-50 shadow-md flex flex-col justify-between rounded-3xl",
         className,
       )}
     >
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-800/60 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-purple-500/20 border border-purple-400/40 text-purple-300 shadow-inner">
-            <BrainCircuit size={24} className="animate-pulse text-amber-300" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-black tracking-tight text-white">
-                AI Profile Trainer & Questionnaire
-              </h3>
-              <span className="rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-300 border border-amber-400/30">
-                ⚡ {trainingScore}% Trained
-              </span>
+      <div>
+        {/* Header Bar */}
+        <div className="flex items-center justify-between border-b border-purple-100 pb-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="grid size-9 place-items-center rounded-xl bg-purple-600 text-white shadow-md shadow-purple-500/20">
+              <BrainCircuit size={18} />
             </div>
-            <p className="text-xs text-purple-200 mt-0.5">
-              Answer 5 quick operational questions to train your AI Co-Pilot for better advice.
-            </p>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">
+                AI Profile & Operations Trainer
+              </h2>
+              <p className="text-[11px] text-purple-700 font-bold">
+                Answer 5 questions to customize your AI Co-Pilot
+              </p>
+            </div>
           </div>
+          <span className="text-xs font-black text-purple-700 bg-purple-100 px-2.5 py-1 rounded-full shrink-0">
+            ⚡ {trainingScore}% Trained
+          </span>
         </div>
 
         {/* Step Indicator Pills */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 mb-4">
           {questions.map((item, idx) => (
             <button
               key={item.id}
               onClick={() => setCurrentStep(idx)}
               className={cn(
-                "h-2.5 rounded-full transition-all cursor-pointer",
+                "h-2 rounded-full transition-all cursor-pointer",
                 currentStep === idx
-                  ? "w-7 bg-amber-400"
+                  ? "w-6 bg-purple-600"
                   : idx < currentStep
-                    ? "w-2.5 bg-emerald-400"
-                    : "w-2.5 bg-purple-900",
+                    ? "w-2 bg-emerald-500"
+                    : "w-2 bg-slate-200",
               )}
               title={`Question ${idx + 1}`}
             />
           ))}
         </div>
+
+        {/* Main Question Box */}
+        <div className="space-y-3">
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                Question {currentStep + 1} of {questions.length}
+              </span>
+            </div>
+            <h3 className="text-xs font-black text-slate-900 flex items-center gap-1.5 mt-1">
+              <Icon size={15} className="text-purple-600 shrink-0" />
+              <span>{q.title}</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">{q.subtitle}</p>
+          </div>
+
+          {/* Options Chips Grid */}
+          <div className="space-y-2 pt-1">
+            {q.options.map((opt) => {
+              const isSelected = q.current === opt.val;
+              return (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => q.setter(opt.val)}
+                  className={cn(
+                    "w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition cursor-pointer text-left",
+                    isSelected
+                      ? "border-purple-500 bg-purple-50 text-purple-900 shadow-xs"
+                      : "border-slate-200/90 bg-white text-slate-800 hover:border-purple-300 hover:bg-purple-50/50",
+                  )}
+                >
+                  <span>{opt.label}</span>
+                  {isSelected ? (
+                    <CheckCircle2 size={15} className="text-purple-600 shrink-0" />
+                  ) : (
+                    <ChevronRight size={14} className="text-slate-400 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Main Question Display Box */}
-      <div className="mt-6 rounded-2xl border border-purple-800/70 bg-purple-900/30 p-5 backdrop-blur-xs">
-        <div className="flex items-start gap-3">
-          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-purple-500/30 text-purple-300 mt-0.5">
-            <Icon size={18} />
-          </div>
-          <div className="flex-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-300">
-              Question {currentStep + 1} of {questions.length}
+      {/* Footer Navigation & Save */}
+      <div className="mt-5 pt-3 border-t border-purple-100 flex items-center justify-between gap-2">
+        <div className="text-[10px] font-bold text-slate-500 truncate max-w-[50%]">
+          {q.current ? (
+            <span className="text-emerald-700 font-extrabold flex items-center gap-1">
+              <CheckCircle2 size={12} /> {q.current}
             </span>
-            <h4 className="text-sm font-extrabold text-white mt-0.5">{q.title}</h4>
-            <p className="text-xs text-purple-200/80 mt-1">{q.subtitle}</p>
-          </div>
-        </div>
-
-        {/* Options Chips Grid */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {q.options.map((opt) => {
-            const isSelected = q.current === opt.val;
-            return (
-              <button
-                key={opt.val}
-                type="button"
-                onClick={() => q.setter(opt.val)}
-                className={cn(
-                  "flex items-center justify-between rounded-xl border p-3 text-left text-xs font-bold transition cursor-pointer",
-                  isSelected
-                    ? "border-amber-400 bg-amber-400/15 text-amber-200 shadow-md shadow-amber-400/10"
-                    : "border-purple-800/80 bg-slate-900/60 text-slate-300 hover:border-purple-500 hover:bg-purple-900/40",
-                )}
-              >
-                <span>{opt.label}</span>
-                {isSelected && <CheckCircle2 size={16} className="text-amber-300 shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Trained Summary Tags Bar */}
-      <div className="mt-5 pt-4 border-t border-purple-800/50 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          <span className="text-xs text-purple-300 font-bold mr-1">Trained Context:</span>
-          {premisesType && (
-            <span className="rounded-lg bg-purple-900/80 border border-purple-700/60 px-2 py-0.5 text-purple-200">
-              🏬 {premisesType}
-            </span>
-          )}
-          {monthlyGoal && (
-            <span className="rounded-lg bg-purple-900/80 border border-purple-700/60 px-2 py-0.5 text-emerald-300">
-              🎯 {monthlyGoal}
-            </span>
-          )}
-          {mainChallenge && (
-            <span className="rounded-lg bg-purple-900/80 border border-purple-700/60 px-2 py-0.5 text-amber-300">
-              ⚠️ {mainChallenge}
-            </span>
+          ) : (
+            "Select an option to train AI"
           )}
         </div>
 
-        {/* Navigation & Save Button */}
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-1.5">
           {currentStep > 0 && (
             <button
               type="button"
               onClick={() => setCurrentStep((prev) => prev - 1)}
-              className="rounded-xl border border-purple-700 bg-purple-950/80 px-3 py-2 text-xs font-bold text-purple-200 hover:bg-purple-900 transition cursor-pointer"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
             >
-              Previous
+              Back
             </button>
           )}
 
@@ -283,24 +273,24 @@ export function AiProfileTrainerWidget({
             <button
               type="button"
               onClick={() => setCurrentStep((prev) => prev + 1)}
-              className="flex items-center gap-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-extrabold px-4 py-2 transition cursor-pointer shadow-md"
+              className="flex items-center gap-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-extrabold px-3.5 py-1.5 transition cursor-pointer shadow-xs"
             >
-              <span>Next Question</span>
-              <ChevronRight size={15} />
+              <span>Next</span>
+              <ChevronRight size={14} />
             </button>
           ) : (
             <button
               type="button"
               onClick={handleSaveTraining}
               disabled={isSaving}
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-black px-5 py-2 transition cursor-pointer shadow-lg shadow-amber-400/20"
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-600 text-white text-xs font-black px-4 py-1.5 transition cursor-pointer shadow-md shadow-purple-500/20 hover:opacity-95"
             >
-              <Sparkles size={15} />
-              <span>{isSaving ? "Saving to Database..." : "Save Answers & Train AI"}</span>
+              <Sparkles size={14} />
+              <span>{isSaving ? "Saving..." : "Save & Train AI"}</span>
             </button>
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

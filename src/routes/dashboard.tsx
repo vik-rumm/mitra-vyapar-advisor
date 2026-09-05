@@ -1427,7 +1427,7 @@ function AiDiscoveryProfiler({
   }
 
   return (
-    <section className="dashboard-card p-6 lg:col-span-4 border border-purple-200/80 bg-gradient-to-br from-purple-50/40 via-white to-slate-50 shadow-md flex flex-col justify-between">
+    <section className="dashboard-card p-6 lg:col-span-6 border border-purple-200/80 bg-gradient-to-br from-purple-50/40 via-white to-slate-50 shadow-md flex flex-col justify-between rounded-3xl">
       <div>
         <div className="flex items-center justify-between border-b border-purple-100 pb-3 mb-4">
           <div className="flex items-center gap-2.5">
@@ -2335,9 +2335,6 @@ function Dashboard() {
           {/* TAB 1: MAIN DASHBOARD OVERVIEW */}
           {activeTab === "Dashboard" && (
             <div className="space-y-6">
-              {/* Interactive AI Profile Trainer & Questionnaire Widget */}
-              <AiProfileTrainerWidget profile={profile} onProfileUpdate={setProfile} />
-
               {/* PHASE 2: POST-LAUNCH LIVE STORE TRACKER BANNER (If Active) */}
               {lifecycleMode === "post" && (
                 <section className="dashboard-card p-6 md:p-8 border-2 border-emerald-300/90 bg-gradient-to-br from-emerald-50/80 via-teal-50/40 to-white shadow-xl rounded-3xl transition-all">
@@ -2932,13 +2929,19 @@ function Dashboard() {
                 {/* SMART MARKET & INVENTORY ADVISOR */}
                 <SmartMarketAdvisor profile={profile} onAskAi={handleAskAdvisorAi} />
 
-                {/* AI DISCOVERY & KNOWLEDGE PROFILER */}
+                {/* AI DISCOVERY & KNOWLEDGE PROFILER (LEFT) & AI PROFILE TRAINER (RIGHT) */}
                 <AiDiscoveryProfiler
                   profile={profile}
                   onUnlockScheme={(cat) => {
                     setSchemeCategoryFilter("Loans");
                     toast.success("AI Matched Government Loans unlocked!");
                   }}
+                />
+
+                <AiProfileTrainerWidget
+                  profile={profile}
+                  onProfileUpdate={setProfile}
+                  className="lg:col-span-6"
                 />
 
                 {/* DIRECTORY OF OFFICIAL GOVT REGISTRATION PORTALS */}
