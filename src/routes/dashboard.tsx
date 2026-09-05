@@ -62,6 +62,7 @@ import { GeminiAiChatbot } from "@/components/GeminiAiChatbot";
 import { OpenStreetMapWidget } from "@/components/OpenStreetMapWidget";
 import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
 import { getCurrentUserRecord, saveUserRecord, UserRecord } from "@/lib/db";
+import { signOutUser } from "@/lib/supabase";
 import {
   calculateActualUnitEconomics,
   calculateDeterministicMath,
@@ -2061,7 +2062,8 @@ function Dashboard() {
     toast.info("Task deleted");
   }
 
-  function handleSignOut() {
+  async function handleSignOut() {
+    await signOutUser();
     toast.success("Signed out successfully");
     setTimeout(() => {
       navigate({ to: "/" });

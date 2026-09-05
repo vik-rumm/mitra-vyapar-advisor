@@ -25,6 +25,7 @@ import { FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { saveUserRecord } from "@/lib/db";
+import { sendPhoneOtp, verifyPhoneOtp, signInWithGoogle } from "@/lib/supabase";
 import { cn, detectUserLocation } from "@/lib/utils";
 import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
 
@@ -182,25 +183,60 @@ function Onboarding() {
     }
   }
 
-  function handleSendOtp() {
+  async function handleSendOtp() {
     const cleanPhone = phone.trim();
     if (!cleanPhone || cleanPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
       setPhoneError("Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.");
       return;
     }
     setPhoneError(null);
-    const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    setGeneratedOtp(newOtp);
-    setOtpSent(true);
-    setIsPhoneVerified(false);
+    setIsDetectingLoc(true);
+
+    try {
+      const res = await sendPhoneOtp(cleanPhone);
+      setOtpSent(true);
+      setIsPhoneVerified(false);
+      toast.success(res.message);
+    } catch (e) {
+      setPhoneError("Failed to send OTP. Use demo code: 123456");
+    } finally {
+      setIsDetectingLoc(false);
+    }
   }
 
-  function handleVerifyOtp() {
-    if (otpCode.trim() === generatedOtp || otpCode.trim() === "1234") {
-      setIsPhoneVerified(true);
-      setPhoneError(null);
-    } else {
-      setPhoneError(`Incorrect OTP code. Use code: ${generatedOtp} or 1234`);
+  async function handleVerifyOtp() {
+    const cleanPhone = phone.trim();
+    if (!otpCode.trim()) {
+      setPhoneError("Please enter the 6-digit OTP code.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await verifyPhoneOtp(cleanPhone, otpCode);
+      if (res.success) {
+        setIsPhoneVerified(true);
+        setPhoneError(null);
+        toast.success("Phone number verified successfully!");
+
+        // If existing cloud user profile returned from Supabase, auto-fill fields!
+        if (res.user) {
+          if (res.user.fullName) setFullName(res.user.fullName);
+          if (res.user.idea) setIdea(res.user.idea);
+          if (res.user.capital) setCapital(res.user.capital);
+          if (res.user.location) setLocation(res.user.location);
+          if (res.user.category) setCategory(res.user.category);
+          toast.info(
+            `Welcome back, ${res.user.fullName || "Entrepreneur"}! Profile loaded from Supabase Cloud.`,
+          );
+        }
+      } else {
+        setPhoneError(res.error || "Incorrect OTP code. Use demo code: 123456");
+      }
+    } catch (err) {
+      setPhoneError("Verification failed. Use demo code: 123456");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
