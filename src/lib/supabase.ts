@@ -22,26 +22,32 @@ export async function syncUserToSupabase(user: UserRecord): Promise<UserRecord |
   if (!isSupabaseConfigured()) return null;
 
   try {
-    const { data, error } = await supabase
+    const payload: Record<string, any> = {
+      id: user.id,
+      full_name: user.fullName,
+      phone: user.phone,
+      email: user.email,
+      auth_method: user.authMethod,
+      category: user.category,
+      category_name: user.categoryName,
+      idea: user.idea,
+      capital: user.capital,
+      location: user.location,
+      target_audience: user.targetAudience,
+      language: user.language,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (user.premisesType) payload["premises_type"] = user.premisesType;
+    if (user.monthlyGoal) payload["monthly_goal"] = user.monthlyGoal;
+    if (user.mainChallenge) payload["main_challenge"] = user.mainChallenge;
+    if (user.competitorCount) payload["competitor_count"] = user.competitorCount;
+    if (user.hasGstOrUdyam) payload["has_gst_or_udyam"] = user.hasGstOrUdyam;
+    if (user.aiTrainingLevel !== undefined) payload["ai_training_level"] = user.aiTrainingLevel;
+
+    const { error } = await supabase
       .from("users")
-      .upsert(
-        {
-          id: user.id,
-          full_name: user.fullName,
-          phone: user.phone,
-          email: user.email,
-          auth_method: user.authMethod,
-          category: user.category,
-          category_name: user.categoryName,
-          idea: user.idea,
-          capital: user.capital,
-          location: user.location,
-          target_audience: user.targetAudience,
-          language: user.language,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "id" },
-      )
+      .upsert(payload, { onConflict: "id" })
       .select()
       .single();
 
@@ -72,7 +78,7 @@ export async function fetchUserFromSupabase(userIdOrPhone: string): Promise<User
 
     if (error || !data) return null;
 
-    return {
+    const record: UserRecord = {
       id: data.id,
       fullName: data.full_name || "",
       phone: data.phone || "",
@@ -88,6 +94,15 @@ export async function fetchUserFromSupabase(userIdOrPhone: string): Promise<User
       createdAt: data.created_at || new Date().toISOString(),
       updatedAt: data.updated_at || new Date().toISOString(),
     };
+
+    if (data.premises_type) record.premisesType = data.premises_type;
+    if (data.monthly_goal) record.monthlyGoal = data.monthly_goal;
+    if (data.main_challenge) record.mainChallenge = data.main_challenge;
+    if (data.competitor_count) record.competitorCount = data.competitor_count;
+    if (data.has_gst_or_udyam) record.hasGstOrUdyam = data.has_gst_or_udyam;
+    if (data.ai_training_level !== undefined) record.aiTrainingLevel = data.ai_training_level;
+
+    return record;
   } catch (err) {
     console.warn("Supabase user fetch warning:", err);
     return null;

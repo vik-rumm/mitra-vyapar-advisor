@@ -58,6 +58,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { AiProfileTrainerWidget } from "@/components/AiProfileTrainerWidget";
 import { GeminiAiChatbot } from "@/components/GeminiAiChatbot";
 import { OpenStreetMapWidget } from "@/components/OpenStreetMapWidget";
 import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
@@ -2334,6 +2335,9 @@ function Dashboard() {
           {/* TAB 1: MAIN DASHBOARD OVERVIEW */}
           {activeTab === "Dashboard" && (
             <div className="space-y-6">
+              {/* Interactive AI Profile Trainer & Questionnaire Widget */}
+              <AiProfileTrainerWidget profile={profile} onProfileUpdate={setProfile} />
+
               {/* PHASE 2: POST-LAUNCH LIVE STORE TRACKER BANNER (If Active) */}
               {lifecycleMode === "post" && (
                 <section className="dashboard-card p-6 md:p-8 border-2 border-emerald-300/90 bg-gradient-to-br from-emerald-50/80 via-teal-50/40 to-white shadow-xl rounded-3xl transition-all">
@@ -3502,7 +3506,9 @@ function Dashboard() {
 
           {/* TAB 5: SETTINGS */}
           {activeTab === "Settings" && (
-            <div className="mt-6 max-w-2xl">
+            <div className="mt-6 max-w-2xl space-y-6">
+              <AiProfileTrainerWidget profile={profile} onProfileUpdate={setProfile} />
+
               <section className="dashboard-card p-6 space-y-6 border border-slate-200/80 shadow-md">
                 <CardTitle>User Database Record & Profile Settings</CardTitle>
                 <div className="space-y-4 text-sm">
@@ -3635,6 +3641,7 @@ function Dashboard() {
         language={language}
         open={showFloatingAi}
         onClose={() => setShowFloatingAi(false)}
+        onProfileUpdate={setProfile}
       />
     </div>
   );

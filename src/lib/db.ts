@@ -13,6 +13,12 @@ export interface UserRecord {
   location: string;
   targetAudience: string;
   language: string;
+  premisesType?: string;
+  monthlyGoal?: string;
+  mainChallenge?: string;
+  competitorCount?: string;
+  hasGstOrUdyam?: string;
+  aiTrainingLevel?: number;
   createdAt: string;
   updatedAt: string;
 }

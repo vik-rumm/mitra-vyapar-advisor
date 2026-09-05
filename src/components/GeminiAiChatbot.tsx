@@ -24,10 +24,12 @@ import {
   ShoppingBag,
   Zap,
   Cpu,
+  BrainCircuit,
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserRecord } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { AiProfileTrainerWidget } from "@/components/AiProfileTrainerWidget";
 
 interface ChatMessage {
   id: string;
@@ -42,9 +44,17 @@ interface GeminiAiChatbotProps {
   language: string;
   open: boolean;
   onClose: () => void;
+  onProfileUpdate?: (updated: UserRecord) => void;
 }
 
-export function GeminiAiChatbot({ profile, language, open, onClose }: GeminiAiChatbotProps) {
+export function GeminiAiChatbot({
+  profile,
+  language,
+  open,
+  onClose,
+  onProfileUpdate,
+}: GeminiAiChatbotProps) {
+  const [showTrainerModal, setShowTrainerModal] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved =
       typeof window !== "undefined" ? localStorage.getItem("vyapar_chat_history") : null;
@@ -203,16 +213,22 @@ export function GeminiAiChatbot({ profile, language, open, onClose }: GeminiAiCh
     history: ChatMessage[],
   ): Promise<{ text: string; modelName: string }> {
     const systemPrompt = `You are Vyapar AI Co-Pilot, an elite Indian hyper-local micro-business consultant for rural and urban entrepreneurs.
-User Business Profile:
+User Business Profile & AI Trained Context:
 - Name: ${profile.fullName || "Entrepreneur"}
 - Business Idea: ${profile.idea || "Micro Business"}
 - Category: ${profile.categoryName || "Retail Shop"}
 - Location: ${profile.location || "Tier-2/3 District in India"}
 - Starting Capital Budget: ₹${profile.capital || "50000"}
 - Target Customers: ${profile.targetAudience || "Local Residents"}
+- Operating Premises: ${profile.premisesType || "Rented Commercial Shop"}
+- Target Monthly Profit Goal: ${profile.monthlyGoal || "₹50,000 / month"}
+- Top Daily Business Bottleneck: ${profile.mainChallenge || "Customer Footfall & Wholesale Sourcing"}
+- Nearby Competitor Density: ${profile.competitorCount || "Moderate (2-5 shops)"}
+- Digital & Legal Registrations: ${profile.hasGstOrUdyam || "Udyam MSME + UPI Active"}
+- AI Profile Training Level: ${profile.aiTrainingLevel || 76}% Trained
 - Preferred Language: ${language}
 
-Task: Provide clear, non-generic, practical, hyper-local business advice. Include specific numbers, margins, real government portals (udyamregistration.gov.in, jansamarth.in, kviconline.gov.in, foscos.fssai.gov.in), and steps. Format with clean Markdown headers, bold text, and bullet points.`;
+Task: Provide clear, non-generic, practical, hyper-local business advice. Cite the user's specific trained context (e.g. premises, monthly profit goal, top bottleneck) when relevant. Include specific numbers, margins, real government portals (udyamregistration.gov.in, jansamarth.in, kviconline.gov.in, foscos.fssai.gov.in), and actionable steps. Format with clean Markdown headers, bold text, and bullet points.`;
 
     // Filter recent chat turns for multi-turn context memory (excluding generic welcome)
     const recentHistory = history.slice(-6).filter((m) => !m.id.startsWith("welcome"));
@@ -385,6 +401,20 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Includ
 
           <div className="flex items-center gap-1">
             <button
+              onClick={() => setShowTrainerModal((prev) => !prev)}
+              className={cn(
+                "rounded-xl px-2.5 py-1.5 transition cursor-pointer flex items-center gap-1 text-[11px] font-extrabold border",
+                showTrainerModal
+                  ? "bg-amber-400 text-slate-950 border-amber-300 shadow-sm"
+                  : "text-amber-300 border-amber-400/30 hover:bg-white/10",
+              )}
+              title="Train AI Profile with 5 questions"
+            >
+              <BrainCircuit size={15} />
+              <span className="hidden sm:inline">Train AI</span>
+            </button>
+
+            <button
               onClick={() => setShowKeyModal(true)}
               className="rounded-xl p-2 text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer"
               title="Select AI Model & Configure Keys"
@@ -412,6 +442,19 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Includ
             </button>
           </div>
         </header>
+
+        {/* Collapsible In-Chat AI Trainer Widget */}
+        {showTrainerModal && (
+          <div className="p-3 bg-slate-900 border-b border-purple-800 animate-in slide-in-from-top-2">
+            <AiProfileTrainerWidget
+              profile={profile}
+              onProfileUpdate={(updated) => {
+                if (onProfileUpdate) onProfileUpdate(updated);
+                toast.success("AI Profile updated for live chat context!");
+              }}
+            />
+          </div>
+        )}
 
         {/* AI Model & Keys Config Modal */}
         {showKeyModal && (
