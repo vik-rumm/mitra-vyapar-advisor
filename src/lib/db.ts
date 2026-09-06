@@ -19,6 +19,11 @@ export interface UserRecord {
   competitorCount?: string;
   hasGstOrUdyam?: string;
   aiTrainingLevel?: number;
+  isPlusSubscriber?: boolean;
+  subscriptionPlan?: "Monthly" | "Quarterly" | "Yearly" | "Free";
+  subscriptionPrice?: number;
+  subscriptionStartDate?: string;
+  subscriptionExpiryDate?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   CircleGauge,
   Cpu,
+  Crown,
   Database,
   DollarSign,
   ExternalLink,
@@ -53,6 +54,7 @@ import {
   Users,
   WalletCards,
   X,
+  Zap,
 } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -64,6 +66,8 @@ import {
   generateConversationalResponse,
   stripEmDashes,
 } from "@/components/GeminiAiChatbot";
+import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { PlusBusinessDashboard } from "@/components/PlusBusinessDashboard";
 import { OpenStreetMapWidget } from "@/components/OpenStreetMapWidget";
 import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
 import { getCurrentUserRecord, saveUserRecord, UserRecord } from "@/lib/db";
@@ -607,6 +611,7 @@ function Sidebar({
   activeTab,
   onSelectTab,
   onFocusAi,
+  onOpenSubscription,
   language,
 }: {
   open: boolean;
@@ -614,6 +619,7 @@ function Sidebar({
   activeTab: string;
   onSelectTab: (tab: string) => void;
   onFocusAi: () => void;
+  onOpenSubscription: () => void;
   language: string;
 }) {
   const t = getDict(language);
@@ -622,6 +628,7 @@ function Sidebar({
     { label: "Idea Validator", translation: t.ideaValidator, icon: Lightbulb },
     { label: "Feasibility Engine", translation: t.feasibilityEngine, icon: CircleGauge },
     { label: "Schemes", translation: t.schemes, icon: FileCheck2 },
+    { label: "Plus Dashboard", translation: "👑 Plus Dashboard", icon: Crown },
     { label: "Settings", translation: t.settings, icon: Settings },
   ];
 
@@ -678,22 +685,29 @@ function Sidebar({
           })}
         </nav>
 
-        <div className="mt-auto rounded-2xl border border-slate-800 bg-slate-900 p-5 text-white shadow-lg">
-          <div className="mb-3 grid size-9 place-items-center rounded-xl bg-purple-500/20 text-purple-300">
-            <Sparkles size={18} />
+        {/* Replaced Card: Get Plus Subscription to Manage Business */}
+        <div className="mt-auto rounded-2xl border border-purple-900/60 bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950 p-5 text-white shadow-xl relative overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <div className="grid size-9 place-items-center rounded-xl bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20">
+              <Crown size={18} className="fill-slate-950" />
+            </div>
+            <span className="rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 text-[9px] font-black uppercase">
+              🔥 From ₹59/mo
+            </span>
           </div>
-          <p className="font-bold text-white">AI Business Advisor</p>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            24/7 free advice powered by Vyapar AI Co-Pilot.
+          <p className="font-black text-white text-sm">Vyapar-Mitra Plus</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
+            Manage your business with AI Analytics, Bank DPR Generator & Cashbook Ledger.
           </p>
           <button
             onClick={() => {
-              onFocusAi();
+              onOpenSubscription();
               onClose();
             }}
-            className="mt-4 w-full rounded-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 py-2.5 text-xs font-black text-slate-950 shadow-md shadow-emerald-400/20 hover:scale-[1.02] transition cursor-pointer"
+            className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 py-2.5 text-xs font-black text-slate-950 shadow-md shadow-amber-400/20 hover:scale-[1.02] transition cursor-pointer flex items-center justify-center gap-1.5"
           >
-            {t.getFreeAdvice}
+            <Zap size={14} className="fill-slate-950" />
+            <span>Get Plus Subscription</span>
           </button>
         </div>
       </aside>
@@ -1817,6 +1831,8 @@ function Dashboard() {
     source: string;
   }>({ banksCount: 3, transportCount: 5, marketsCount: 2, source: "Live OpenStreetMap Overpass" });
 
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
   const [profile, setProfile] = useState<UserRecord>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -2070,6 +2086,7 @@ function Dashboard() {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         onFocusAi={focusAi}
+        onOpenSubscription={() => setShowSubscriptionModal(true)}
         language={language}
       />
       <div className="lg:pl-[250px]">
@@ -3570,11 +3587,29 @@ function Dashboard() {
               </section>
             </div>
           )}
+
+          {/* TAB 6: PLUS DASHBOARD */}
+          {activeTab === "Plus Dashboard" && (
+            <div className="mt-6">
+              <PlusBusinessDashboard
+                profile={profile}
+                onOpenSubscriptionModal={() => setShowSubscriptionModal(true)}
+              />
+            </div>
+          )}
         </main>
       </div>
 
       <SchemeDialog scheme={selectedScheme} onClose={() => setSelectedScheme(null)} />
       <ArchitectureModal open={showArchModal} onClose={() => setShowArchModal(false)} />
+
+      {/* Subscription Management Modal */}
+      <SubscriptionModal
+        open={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        profile={profile}
+        onProfileUpdate={setProfile}
+      />
 
       {/* Floating Vyapar AI Launcher Button */}
       <button
