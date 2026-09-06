@@ -22,6 +22,7 @@ import {
   Tag,
   Users,
   Check,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserRecord } from "@/lib/db";
@@ -275,6 +276,139 @@ export function PlusBusinessDashboard({
     } else {
       toast.info(`🔊 Simulated Speaker: "₹${amount} Received on UPI"`);
     }
+  }
+
+  if (!isSubscribed) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-150">
+        {/* Plus Header Banner */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-purple-950 to-indigo-950 p-6 text-white shadow-xl border border-purple-900/40">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20">
+                <Crown size={26} className="fill-slate-950" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-black text-white">Vyapar-Mitra Plus Dashboard</h2>
+                  <span className="rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 px-3 py-0.5 text-[11px] font-black uppercase flex items-center gap-1">
+                    <Lock size={12} />
+                    SUBSCRIPTION REQUIRED
+                  </span>
+                </div>
+                <p className="text-xs text-purple-200 mt-1">
+                  Operational Automation Tools: WhatsApp Order Bot, Festival Broadcasts, Mandi RFQs
+                  & UPI Soundbox Billing
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onOpenSubscriptionModal}
+              className="rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 px-6 py-3 text-xs font-black text-slate-950 shadow-lg shadow-amber-400/20 hover:scale-105 transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Zap size={16} className="fill-slate-950" />
+              <span>Unlock Plus Dashboard (₹59/mo)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Free Advisory Banner */}
+        <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-950">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            <span>
+              <strong>Core AI Advisory is 100% FREE</strong>: AI Advisory, Bank DPR Reports, Unit
+              Economics & Govt Loan Schemes remain free for all users. Plus Subscription only
+              unlocks operational automation tools.
+            </span>
+          </div>
+        </div>
+
+        {/* Locked Paywall Card */}
+        <div className="relative overflow-hidden rounded-3xl bg-white p-8 border border-slate-200 shadow-xl text-center space-y-6">
+          <div className="mx-auto grid size-20 place-items-center rounded-3xl bg-purple-100 text-purple-700 shadow-inner">
+            <Lock size={38} className="text-purple-900" />
+          </div>
+
+          <div className="max-w-xl mx-auto space-y-2">
+            <h3 className="text-2xl font-black text-slate-950">
+              Vyapar-Mitra Plus Subscription Required
+            </h3>
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Access to the Plus Dashboard requires an active subscription. Upgrade starting at{" "}
+              <strong>₹59 / month</strong> (or ₹399 / year) to unlock operational automation tools
+              for your business.
+            </p>
+          </div>
+
+          {/* Locked Features Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-2xl mx-auto pt-2">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative">
+              <span className="absolute top-3 right-3 rounded-full bg-slate-200 p-1 text-slate-600">
+                <Lock size={14} />
+              </span>
+              <div className="flex items-center gap-2 text-purple-700 font-black text-xs">
+                <MessageSquare size={16} />
+                <span>WhatsApp Order Bot</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Auto-catalog sharing, customer WhatsApp order taking & status tracking.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative">
+              <span className="absolute top-3 right-3 rounded-full bg-slate-200 p-1 text-slate-600">
+                <Lock size={14} />
+              </span>
+              <div className="flex items-center gap-2 text-purple-700 font-black text-xs">
+                <Megaphone size={16} />
+                <span>Festival Broadcast Bot</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Send Diwali discount flyers & promotional broadcasts to saved customers in 1-click.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative">
+              <span className="absolute top-3 right-3 rounded-full bg-slate-200 p-1 text-slate-600">
+                <Lock size={14} />
+              </span>
+              <div className="flex items-center gap-2 text-purple-700 font-black text-xs">
+                <Package size={16} />
+                <span>Wholesale Mandi RFQs</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Dispatch bulk inventory price inquiries (RFQs) to regional APMC mandi vendors.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 relative">
+              <span className="absolute top-3 right-3 rounded-full bg-slate-200 p-1 text-slate-600">
+                <Lock size={14} />
+              </span>
+              <div className="flex items-center gap-2 text-purple-700 font-black text-xs">
+                <Volume2 size={16} />
+                <span>UPI Soundbox & SMS Billing</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Digital SMS receipt generator with instant audio speaker transaction confirmation.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <button
+              onClick={onOpenSubscriptionModal}
+              className="h-12 px-8 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-600 text-white text-xs font-black hover:opacity-95 shadow-xl shadow-indigo-500/20 hover:scale-105 transition cursor-pointer flex items-center justify-center gap-2 mx-auto"
+            >
+              <Crown size={16} className="fill-white" />
+              <span>Unlock Plus Dashboard Now (₹59 / month)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

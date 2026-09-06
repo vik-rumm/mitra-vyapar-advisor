@@ -613,6 +613,7 @@ function Sidebar({
   onFocusAi,
   onOpenSubscription,
   language,
+  profile,
 }: {
   open: boolean;
   onClose: () => void;
@@ -621,6 +622,7 @@ function Sidebar({
   onFocusAi: () => void;
   onOpenSubscription: () => void;
   language: string;
+  profile: UserRecord;
 }) {
   const t = getDict(language);
   const navItems = [
@@ -667,6 +669,10 @@ function Sidebar({
               <button
                 key={item.label}
                 onClick={() => {
+                  if (item.label === "Plus Dashboard" && !profile.isPlusSubscriber) {
+                    onOpenSubscription();
+                    toast.info("Subscription Required: Upgrade to Plus (₹59/mo) to unlock.");
+                  }
                   onSelectTab(item.label);
                   onClose();
                 }}
@@ -2091,6 +2097,7 @@ function Dashboard() {
         onFocusAi={focusAi}
         onOpenSubscription={() => setShowSubscriptionModal(true)}
         language={language}
+        profile={profile}
       />
       <div className="lg:pl-[250px]">
         {/* Header */}
