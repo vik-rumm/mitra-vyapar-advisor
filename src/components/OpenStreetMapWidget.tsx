@@ -324,8 +324,8 @@ export const OpenStreetMapWidget: React.FC<OpenStreetMapWidgetProps> = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-900 transition-all duration-300 shadow-lg ${
-        isFullscreen ? "fixed inset-4 z-50 h-[calc(100vh-2rem)]" : "h-[340px] w-full"
+      className={`relative z-0 isolate overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-900 transition-all duration-300 shadow-lg ${
+        isFullscreen ? "fixed inset-4 z-[9000] h-[calc(100vh-2rem)]" : "h-[340px] w-full"
       }`}
     >
       {/* Top Floating Glass Bar */}

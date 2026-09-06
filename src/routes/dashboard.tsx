@@ -1542,7 +1542,7 @@ function FloatingAiAssistant({
 function SchemeDialog({ scheme, onClose }: { scheme: Scheme | null; onClose: () => void }) {
   if (!scheme) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
       <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
         <div className="flex items-start justify-between border-b border-slate-100 pb-4">
           <div>
@@ -1682,7 +1682,7 @@ function SchemeDialog({ scheme, onClose }: { scheme: Scheme | null; onClose: () 
 function ArchitectureModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-md">
       <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">

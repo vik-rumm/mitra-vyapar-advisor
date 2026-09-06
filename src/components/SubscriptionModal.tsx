@@ -168,7 +168,7 @@ export function SubscriptionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-slate-200">
         {/* Header Bar */}
         <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-950 via-purple-950 to-indigo-950 text-white p-6 rounded-t-3xl border-b border-purple-900/50 flex items-center justify-between">
