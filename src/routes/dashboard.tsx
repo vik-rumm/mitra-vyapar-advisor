@@ -2032,6 +2032,9 @@ function Dashboard() {
 
   async function handleSignOut() {
     await signOutUser();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("vyapar_chat_history");
+    }
     toast.success("Signed out successfully");
     setTimeout(() => {
       navigate({ to: "/" });

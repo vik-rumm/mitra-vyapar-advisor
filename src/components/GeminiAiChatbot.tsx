@@ -61,9 +61,23 @@ export function GeminiAiChatbot({
   onProfileUpdate,
 }: GeminiAiChatbotProps) {
   const [showTrainerModal, setShowTrainerModal] = useState(false);
+  const userStorageKey = profile?.id
+    ? `vyapar_chat_history_${profile.id}`
+    : profile?.phone
+      ? `vyapar_chat_history_${profile.phone}`
+      : "vyapar_chat_history_guest";
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved =
-      typeof window !== "undefined" ? localStorage.getItem("vyapar_chat_history") : null;
+      typeof window !== "undefined"
+        ? localStorage.getItem(
+            profile?.id
+              ? `vyapar_chat_history_${profile.id}`
+              : profile?.phone
+                ? `vyapar_chat_history_${profile.phone}`
+                : "vyapar_chat_history_guest",
+          )
+        : null;
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -75,7 +89,7 @@ export function GeminiAiChatbot({
     const capFormatted = parseCapitalNumber(profile?.capital).toLocaleString("en-IN");
     return [
       {
-        id: "welcome-1",
+        id: `welcome-${profile?.id || "default"}`,
         from: "ai",
         text: `Hey ${profile?.fullName || "Entrepreneur"}! 👋 What can I help you with today?\n\nI have loaded your active profile:\n• **Business**: ${profile?.idea || "Micro Business"} (${profile?.categoryName || "Retail Shop"})\n• **Location**: ${profile?.location || "Local Market"}\n• **Capital**: ₹${capFormatted}\n\nAsk me about **PM Mudra loans**, **exact profit math**, **wholesale sourcing mandis**, or **mandatory permits**!`,
         timestamp: "Just now",
@@ -112,12 +126,12 @@ export function GeminiAiChatbot({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Save chat history & engine preference
+  // Save chat history securely scoped ONLY to this user's unique key
   useEffect(() => {
-    if (typeof window !== "undefined" && messages.length > 0) {
-      localStorage.setItem("vyapar_chat_history", JSON.stringify(messages));
+    if (typeof window !== "undefined" && messages.length > 0 && profile) {
+      localStorage.setItem(userStorageKey, JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, userStorageKey]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -177,9 +191,10 @@ export function GeminiAiChatbot({
     setTimeout(() => setCopiedId(null), 2000);
   }
 
-  // Re-sync active user profile name, business details & capital into chat welcome message dynamically
+  // Re-load and isolate chat history whenever active user account changes
   useEffect(() => {
-    if (!profile) return;
+    if (typeof window === "undefined" || !profile) return;
+    const saved = localStorage.getItem(userStorageKey);
     const capNum = parseCapitalNumber(profile.capital);
     const formattedCap = capNum.toLocaleString("en-IN");
     const activeName = profile.fullName ? profile.fullName.trim() : "Entrepreneur";
@@ -187,27 +202,35 @@ export function GeminiAiChatbot({
     const location = profile.location || "Local Market";
     const cat = profile.categoryName || "Retail Shop";
 
-    const newWelcomeText = `Hey ${activeName}! 👋 What can I help you with today?\n\nI have loaded your active profile:\n• **Business**: ${idea} (${cat})\n• **Location**: ${location}\n• **Capital**: ₹${formattedCap}\n\nAsk me about **PM Mudra loans**, **exact profit math**, **wholesale sourcing mandis**, or **mandatory permits**!`;
+    const defaultWelcomeText = `Hey ${activeName}! 👋 What can I help you with today?\n\nI have loaded your active profile:\n• **Business**: ${idea} (${cat})\n• **Location**: ${location}\n• **Capital**: ₹${formattedCap}\n\nAsk me about **PM Mudra loans**, **exact profit math**, **wholesale sourcing mandis**, or **mandatory permits**!`;
 
-    setMessages((prev) => {
-      if (prev.length === 0) return prev;
-      const first = prev[0];
-      if (
-        first &&
-        first.from === "ai" &&
-        (first.id.startsWith("welcome") ||
-          first.text.includes("Ramesh") ||
-          first.text.includes("NaN") ||
-          !first.text.includes(activeName) ||
-          !first.text.includes(formattedCap))
-      ) {
-        const updated = [...prev];
-        updated[0] = { ...first, text: newWelcomeText };
-        return updated;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const updated = [...parsed];
+          if (updated[0] && updated[0].from === "ai" && updated[0].id.startsWith("welcome")) {
+            updated[0] = { ...updated[0], text: defaultWelcomeText };
+          }
+          setMessages(updated);
+          return;
+        }
+      } catch (e) {
+        // Fallback
       }
-      return prev;
-    });
-  }, [profile, open]);
+    }
+
+    // Fresh chat history for this specific user
+    setMessages([
+      {
+        id: `welcome-${profile.id || Date.now()}`,
+        from: "ai",
+        text: defaultWelcomeText,
+        timestamp: "Just now",
+        modelUsed: "Vyapar-Mitra AI Agent",
+      },
+    ]);
+  }, [profile?.id, profile?.phone, open]);
 
   // Clear Chat
   function handleClearChat() {
@@ -216,14 +239,17 @@ export function GeminiAiChatbot({
     const activeName = profile?.fullName ? profile.fullName.trim() : "Entrepreneur";
 
     const welcomeMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: `welcome-${Date.now()}`,
       from: "ai",
       text: `Hey ${activeName}! 👋 Chat reset!\n\nI have loaded your active profile:\n• **Business**: ${profile?.idea || "Micro Business"} (${profile?.categoryName || "Retail Shop"})\n• **Location**: ${profile?.location || "Local Market"}\n• **Capital**: ₹${formattedCap}\n\nAsk me anything about your business!`,
       timestamp: "Just now",
-      modelUsed: "Vyapar AI Agent",
+      modelUsed: "Vyapar-Mitra AI Agent",
     };
     setMessages([welcomeMsg]);
-    toast.success("Chat history refreshed with active profile!");
+    if (typeof window !== "undefined") {
+      localStorage.setItem(userStorageKey, JSON.stringify([welcomeMsg]));
+    }
+    toast.success("Chat history cleared for your account!");
   }
 
   // Voice Input (Speech Recognition)
