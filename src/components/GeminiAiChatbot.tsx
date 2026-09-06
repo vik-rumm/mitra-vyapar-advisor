@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserRecord } from "@/lib/db";
-import { cn } from "@/lib/utils";
+import { cn, parseCapitalNumber } from "@/lib/utils";
 import { AiProfileTrainerWidget } from "@/components/AiProfileTrainerWidget";
 
 interface ChatMessage {
@@ -72,11 +72,12 @@ export function GeminiAiChatbot({
         // Fall back
       }
     }
+    const capFormatted = parseCapitalNumber(profile?.capital).toLocaleString("en-IN");
     return [
       {
         id: "welcome-1",
         from: "ai",
-        text: `Hey ${profile.fullName || "Entrepreneur"}! 👋 What can I help you with today?\n\nI have loaded your active profile:\n• **Business**: ${profile.idea || "Micro Business"} (${profile.categoryName || "Retail Shop"})\n• **Location**: ${profile.location || "Local Market"}\n• **Capital**: ₹${Number(profile.capital || 50000).toLocaleString("en-IN")}\n\nAsk me about **PM Mudra loans**, **exact profit math**, **wholesale sourcing mandis**, or **mandatory permits**!`,
+        text: `Hey ${profile?.fullName || "Entrepreneur"}! 👋 What can I help you with today?\n\nI have loaded your active profile:\n• **Business**: ${profile?.idea || "Micro Business"} (${profile?.categoryName || "Retail Shop"})\n• **Location**: ${profile?.location || "Local Market"}\n• **Capital**: ₹${capFormatted}\n\nAsk me about **PM Mudra loans**, **exact profit math**, **wholesale sourcing mandis**, or **mandatory permits**!`,
         timestamp: "Just now",
         modelUsed: "Vyapar AI Agent",
       },
@@ -176,17 +177,53 @@ export function GeminiAiChatbot({
     setTimeout(() => setCopiedId(null), 2000);
   }
 
+  // Re-sync active user profile name, business details & capital into chat welcome message dynamically
+  useEffect(() => {
+    if (!profile) return;
+    const capNum = parseCapitalNumber(profile.capital);
+    const formattedCap = capNum.toLocaleString("en-IN");
+    const activeName = profile.fullName ? profile.fullName.trim() : "Entrepreneur";
+    const idea = profile.idea || "Micro Business";
+    const location = profile.location || "Local Market";
+    const cat = profile.categoryName || "Retail Shop";
+
+    const newWelcomeText = `Hey ${activeName}! 👋 What can I help you with today?\n\nI have loaded your active profile:\n• **Business**: ${idea} (${cat})\n• **Location**: ${location}\n• **Capital**: ₹${formattedCap}\n\nAsk me about **PM Mudra loans**, **exact profit math**, **wholesale sourcing mandis**, or **mandatory permits**!`;
+
+    setMessages((prev) => {
+      if (prev.length === 0) return prev;
+      const first = prev[0];
+      if (
+        first &&
+        first.from === "ai" &&
+        (first.id.startsWith("welcome") ||
+          first.text.includes("Ramesh") ||
+          first.text.includes("NaN") ||
+          !first.text.includes(activeName) ||
+          !first.text.includes(formattedCap))
+      ) {
+        const updated = [...prev];
+        updated[0] = { ...first, text: newWelcomeText };
+        return updated;
+      }
+      return prev;
+    });
+  }, [profile, open]);
+
   // Clear Chat
   function handleClearChat() {
+    const capNum = parseCapitalNumber(profile?.capital);
+    const formattedCap = capNum.toLocaleString("en-IN");
+    const activeName = profile?.fullName ? profile.fullName.trim() : "Entrepreneur";
+
     const welcomeMsg: ChatMessage = {
       id: Date.now().toString(),
       from: "ai",
-      text: `Chat reset! Ask your next business question for **${profile.idea || "your shop"}** in **${profile.location}**.`,
+      text: `Hey ${activeName}! 👋 Chat reset!\n\nI have loaded your active profile:\n• **Business**: ${profile?.idea || "Micro Business"} (${profile?.categoryName || "Retail Shop"})\n• **Location**: ${profile?.location || "Local Market"}\n• **Capital**: ₹${formattedCap}\n\nAsk me anything about your business!`,
       timestamp: "Just now",
       modelUsed: "Vyapar AI Agent",
     };
     setMessages([welcomeMsg]);
-    toast.success("Chat history cleared");
+    toast.success("Chat history refreshed with active profile!");
   }
 
   // Voice Input (Speech Recognition)

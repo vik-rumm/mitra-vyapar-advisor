@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function parseCapitalNumber(cap?: string | number): number {
+  if (typeof cap === "number" && !isNaN(cap)) return cap;
+  if (!cap) return 50000;
+  const clean = String(cap).replace(/[^\d]/g, "");
+  const parsed = parseInt(clean, 10);
+  return isNaN(parsed) || parsed <= 0 ? 50000 : parsed;
+}
+
 export interface LocationGeo {
   lat: number;
   lon: number;

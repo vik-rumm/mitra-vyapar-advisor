@@ -1877,21 +1877,32 @@ function Dashboard() {
     source: string;
   }>({ banksCount: 3, transportCount: 5, marketsCount: 2, source: "Live OpenStreetMap Overpass" });
 
-  const [profile, setProfile] = useState<UserRecord>({
-    id: "usr_default",
-    fullName: "Ramesh Kumar",
-    phone: "9876543210",
-    email: "ramesh@example.com",
-    authMethod: "otp",
-    categoryName: "Food Stall & Snack Shop",
-    category: "food",
-    idea: "Snack & Tea Corner",
-    capital: "50,000",
-    location: "Shivajinagar, Pune",
-    language: "English",
-    targetAudience: "Local Walk-in Customers",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+  const [profile, setProfile] = useState<UserRecord>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("vyapar_user_profile");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.fullName) return parsed;
+        }
+      } catch (e) {}
+    }
+    return {
+      id: "usr_default",
+      fullName: "Entrepreneur",
+      phone: "9876543210",
+      email: "user@example.com",
+      authMethod: "otp",
+      categoryName: "Food Stall & Snack Shop",
+      category: "food",
+      idea: "Snack & Tea Corner",
+      capital: "50,000",
+      location: "Shivajinagar, Pune",
+      language: "English",
+      targetAudience: "Local Walk-in Customers",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
   });
 
   // Action Plan Tasks State (Persisted)
