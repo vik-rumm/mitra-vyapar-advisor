@@ -14,6 +14,10 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  MessageSquare,
+  Send,
+  Smartphone,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserRecord, saveUserRecord } from "@/lib/db";
@@ -49,7 +53,7 @@ export function SubscriptionModal({
       savings: null,
       badge: "Flexible",
       badgeColor: "bg-slate-100 text-slate-800 border-slate-300",
-      description: "Great for testing premium tools and creating your initial business plan.",
+      description: "Includes WhatsApp Bot Order Manager & Automated SMS billing for 30 days.",
     },
     {
       id: "Quarterly" as const,
@@ -60,8 +64,7 @@ export function SubscriptionModal({
       savings: "Save 15%",
       badge: "Popular",
       badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-300",
-      description:
-        "Perfect for active shop setup, loan applications, and initial supplier sourcing.",
+      description: "WhatsApp Order Bot, customer promotion broadcasts & bulk mandi RFQ dispatcher.",
     },
     {
       id: "Yearly" as const,
@@ -73,35 +76,41 @@ export function SubscriptionModal({
       badge: "BEST VALUE",
       badgeColor: "bg-amber-400 text-slate-950 font-black border-amber-300 shadow-sm",
       description:
-        "Complete year-round business co-pilot, bank project reports & daily profit ledger.",
+        "Full year unlimited WhatsApp Bot orders, SMS billing, customer loyalty & multi-store.",
     },
   ];
 
+  // Paid Operational Add-on Services (WhatsApp Bot & Automation outside core problem statement)
   const features = [
     {
-      icon: FileText,
-      title: "1-Click Bank DPR Project Report Generator",
-      desc: "Instant official project reports formatted for PM MUDRA & PMEGP loan approvals with downloadable PDF.",
+      icon: MessageSquare,
+      title: "Manage Orders with WhatsApp Bot",
+      desc: "Allow customers to view catalog, place orders directly on WhatsApp, and receive instant automated PDF bills.",
+      badge: "WhatsApp Bot",
     },
     {
-      icon: TrendingUp,
-      title: "Daily Profit & Expense Cashbook Ledger",
-      desc: "Track daily shop sales, itemized expenses, cash vs UPI balance, and real-time net margin alerts.",
+      icon: Send,
+      title: "Automated Customer Marketing & Festival Bot",
+      desc: "Send automated promotional offers, festival greeting vouchers, and loyalty rewards to regular buyers.",
+      badge: "WhatsApp Automation",
     },
     {
       icon: Package,
-      title: "APMC Mandi & Direct Sourcing Directory",
-      desc: "Access verified wholesale suppliers, regional mandis, and bulk pricing benchmarks near your district.",
+      title: "Bulk Wholesale Mandi RFQ Auto-Dispatcher",
+      desc: "Send 1-click inventory inquiry requests (RFQ) to 10+ wholesale mandis & distributors simultaneously.",
+      badge: "Automation",
+    },
+    {
+      icon: Smartphone,
+      title: "Automated UPI Payment Soundbox & SMS Billing",
+      desc: "Auto-generate UPI QR links and dispatch instant SMS receipts to customers after every sale.",
+      badge: "SMS & Billing",
     },
     {
       icon: Building2,
-      title: "Competitor & Footfall Risk Heatmap",
-      desc: "Local customer traffic analysis, peak operating hours, and competitor density intelligence.",
-    },
-    {
-      icon: Zap,
-      title: "Priority 24/7 AI Co-Pilot & WhatsApp Export",
-      desc: "Zero waiting time AI advisory + instant 1-click export of business plans & reports to WhatsApp.",
+      title: "Multi-Store & Staff Terminal Management",
+      desc: "Manage 2+ shop locations, track staff sales, and control multi-counter permissions under one plan.",
+      badge: "Multi-Store",
     },
   ];
 
@@ -128,7 +137,7 @@ export function SubscriptionModal({
       await saveUserRecord(updatedProfile);
       onProfileUpdate(updatedProfile);
       toast.success(`🎉 Subscribed to Vyapar-Mitra Plus (${planObj.name})!`, {
-        description: `Your subscription is active until ${expiryDate.toLocaleDateString("en-IN")}. All premium business management tools are unlocked!`,
+        description: `WhatsApp Order Bot & Operational Automation are active until ${expiryDate.toLocaleDateString("en-IN")}.`,
       });
       onClose();
     } catch (err) {
@@ -177,7 +186,8 @@ export function SubscriptionModal({
                 )}
               </div>
               <p className="text-xs text-purple-200 mt-0.5">
-                Unlock Complete AI Business Management, Bank DPR Reports & Cashbook Ledger
+                Automated Operational Services: WhatsApp Order Bot, Customer SMS & Wholesale
+                Dispatch
               </p>
             </div>
           </div>
@@ -192,19 +202,34 @@ export function SubscriptionModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 space-y-8">
+        <div className="p-6 space-y-6">
+          {/* Core Problem Statement Free Banner */}
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-xs text-emerald-950">
+            <Sparkles size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-extrabold text-emerald-950 text-sm block">
+                ✨ Core AI Advice, Bank DPR Reports & Market Insights are 100% FREE!
+              </span>
+              <p className="text-emerald-800 leading-relaxed mt-0.5 font-medium">
+                Our AI Business Co-Pilot, Bank DPR Loan Generator, Feasibility Calculations, and
+                Government Schemes are completely free for all entrepreneurs. We only charge for
+                operational add-ons like the **WhatsApp Order Bot** & **Automated SMS Billing**.
+              </p>
+            </div>
+          </div>
+
           {/* Active Subscription Status Banner if Subscribed */}
           {isSubscribed && (
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white">
+                <div className="grid size-10 place-items-center rounded-xl bg-purple-600 text-white">
                   <CheckCircle2 size={20} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-extrabold text-emerald-950">
-                    You are a Vyapar-Mitra Plus Member ({profile.subscriptionPlan} Plan)
+                  <h4 className="text-sm font-extrabold text-purple-950">
+                    Vyapar-Mitra Plus Active ({profile.subscriptionPlan} Plan)
                   </h4>
-                  <p className="text-xs text-emerald-800 font-medium">
+                  <p className="text-xs text-purple-800 font-medium">
                     Valid until:{" "}
                     {profile.subscriptionExpiryDate
                       ? new Date(profile.subscriptionExpiryDate).toLocaleDateString("en-IN")
@@ -225,7 +250,7 @@ export function SubscriptionModal({
           {/* Pricing Plans Grid */}
           <div>
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">
-              Select Subscription Plan
+              Select Operational Plan
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {plans.map((p) => {
@@ -307,10 +332,10 @@ export function SubscriptionModal({
             </div>
           </div>
 
-          {/* Premium Features Included */}
+          {/* Operational Paid Services List */}
           <div>
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4">
-              What You Get in Vyapar-Mitra Plus
+              Paid Operational Services Included
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {features.map((f, i) => (
@@ -322,7 +347,12 @@ export function SubscriptionModal({
                     <f.icon size={20} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-extrabold text-slate-950">{f.title}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-extrabold text-slate-950">{f.title}</h4>
+                      <span className="rounded-md bg-purple-100 text-purple-800 px-1.5 py-0.5 text-[9px] font-bold">
+                        {f.badge}
+                      </span>
+                    </div>
                     <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">{f.desc}</p>
                   </div>
                 </div>
@@ -335,9 +365,9 @@ export function SubscriptionModal({
             <div className="flex items-center gap-3">
               <ShieldCheck size={24} className="text-emerald-400 shrink-0" />
               <div className="text-xs">
-                <p className="font-bold text-white">Instant UPI & Card Activation</p>
+                <p className="font-bold text-white">Instant WhatsApp Bot & Operational Setup</p>
                 <p className="text-[11px] text-slate-400">
-                  Cancel or change your plan anytime from your dashboard.
+                  Cancel or change your operational plan anytime.
                 </p>
               </div>
             </div>
@@ -346,7 +376,7 @@ export function SubscriptionModal({
               disabled={isProcessing}
               className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 px-5 py-2.5 text-xs font-black text-slate-950 hover:scale-105 transition cursor-pointer"
             >
-              Get Plus Now
+              Get Operational Plus
             </button>
           </div>
         </div>

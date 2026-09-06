@@ -1,22 +1,27 @@
 import React, { useState } from "react";
 import {
   Crown,
-  FileText,
-  TrendingUp,
+  MessageSquare,
+  Megaphone,
   Package,
-  Building2,
-  Printer,
-  Download,
+  Volume2,
   Plus,
   Trash2,
   CheckCircle2,
-  DollarSign,
-  Calendar,
-  Sparkles,
+  Send,
   Zap,
-  ArrowUpRight,
-  ShieldCheck,
   Share2,
+  Bot,
+  ShoppingCart,
+  Receipt,
+  Smartphone,
+  Play,
+  Copy,
+  Clock,
+  Building2,
+  Tag,
+  Users,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserRecord } from "@/lib/db";
@@ -31,87 +36,245 @@ export function PlusBusinessDashboard({
   profile,
   onOpenSubscriptionModal,
 }: PlusBusinessDashboardProps) {
-  const [activeTab, setActiveTab] = useState<"dpr" | "ledger" | "mandi" | "footfall">("dpr");
+  const [activeTab, setActiveTab] = useState<
+    "whatsapp-bot" | "marketing-bot" | "rfq-dispatcher" | "soundbox-billing"
+  >("whatsapp-bot");
 
   const isSubscribed = profile.isPlusSubscriber ?? false;
-  const capitalNum = parseCapitalNumber(profile.capital);
-  const formattedCap = capitalNum.toLocaleString("en-IN");
   const bizName = profile.idea || "Micro Business";
   const loc = profile.location || "Tier-2/3 Market";
 
-  // Daily Ledger State (Simulated Cashbook Entries)
-  const [entries, setEntries] = useState<
-    Array<{ id: string; type: "income" | "expense"; desc: string; amount: number; time: string }>
+  // --- TAB 1: WHATSAPP BOT ORDER MANAGER STATE ---
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
+  const [orders, setOrders] = useState<
+    Array<{
+      id: string;
+      customerName: string;
+      phone: string;
+      items: string;
+      amount: number;
+      status: "Pending" | "Accepted" | "Dispatched" | "Delivered";
+      time: string;
+    }>
   >([
     {
-      id: "1",
-      type: "income",
-      desc: "Daily Shop Sales (UPI + Cash)",
-      amount: 3450,
-      time: "11:30 AM",
+      id: "ORD-9021",
+      customerName: "Suresh Kumar",
+      phone: "+91 98765 43210",
+      items: "2x Grocery Stock Pack, 1x Mustard Oil (1L)",
+      amount: 850,
+      status: "Pending",
+      time: "10 min ago",
     },
     {
-      id: "2",
-      type: "expense",
-      desc: "Wholesale Inventory Stock Sourcing",
-      amount: 1800,
-      time: "09:15 AM",
+      id: "ORD-9020",
+      customerName: "Priya Sharma",
+      phone: "+91 98123 76543",
+      items: "1x Fast-Charging USB-C Cable, 1x Tempered Glass",
+      amount: 420,
+      status: "Accepted",
+      time: "35 min ago",
     },
-    { id: "3", type: "income", desc: "Bulky Accessories Order", amount: 1200, time: "02:45 PM" },
     {
-      id: "4",
-      type: "expense",
-      desc: "Shop Electricity & Transport Bill",
-      amount: 350,
-      time: "04:10 PM",
+      id: "ORD-9019",
+      customerName: "Ramesh Patel",
+      phone: "+91 99887 11223",
+      items: "5x Wholesale Cotton Towels",
+      amount: 1250,
+      status: "Dispatched",
+      time: "2 hours ago",
     },
   ]);
 
-  const [newDesc, setNewDesc] = useState("");
-  const [newAmount, setNewAmount] = useState("");
-  const [newType, setNewType] = useState<"income" | "expense">("income");
+  const [newCustName, setNewCustName] = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [newCustItems, setNewCustItems] = useState("");
+  const [newCustAmount, setNewCustAmount] = useState("");
 
-  const totalIncome = entries
-    .filter((e) => e.type === "income")
-    .reduce((sum, e) => sum + e.amount, 0);
-  const totalExpense = entries
-    .filter((e) => e.type === "expense")
-    .reduce((sum, e) => sum + e.amount, 0);
-  const netProfit = totalIncome - totalExpense;
-
-  function handleAddEntry(e: React.FormEvent) {
+  function handleAddOrder(e: React.FormEvent) {
     e.preventDefault();
-    if (!newDesc.trim() || !newAmount || isNaN(Number(newAmount))) {
-      toast.error("Please enter a valid description and numeric amount.");
+    if (!newCustName.trim() || !newCustItems.trim() || !newCustAmount) {
+      toast.error("Please fill in customer name, items, and total order amount.");
       return;
     }
-
-    const newEntry = {
-      id: Date.now().toString(),
-      type: newType,
-      desc: newDesc.trim(),
-      amount: Number(newAmount),
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    const newOrd = {
+      id: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+      customerName: newCustName.trim(),
+      phone: newCustPhone.trim() || "+91 98000 00000",
+      items: newCustItems.trim(),
+      amount: Number(newCustAmount),
+      status: "Pending" as const,
+      time: "Just now",
     };
-
-    setEntries([newEntry, ...entries]);
-    setNewDesc("");
-    setNewAmount("");
-    toast.success(`Entry added: ${newType === "income" ? "+₹" : "-₹"}${newAmount}`);
+    setOrders([newOrd, ...orders]);
+    setNewCustName("");
+    setNewCustPhone("");
+    setNewCustItems("");
+    setNewCustAmount("");
+    toast.success(`WhatsApp Order ${newOrd.id} created successfully!`);
   }
 
-  function handleDeleteEntry(id: string) {
-    setEntries(entries.filter((e) => e.id !== id));
-    toast.info("Ledger entry removed.");
+  function handleUpdateOrderStatus(id: string, status: "Accepted" | "Dispatched" | "Delivered") {
+    setOrders(orders.map((o) => (o.id === id ? { ...o, status } : o)));
+    toast.success(`Order ${id} status updated to '${status}'.`);
   }
 
-  function handlePrintDpr() {
-    window.print();
+  function handleShareCatalog() {
+    const text = `*${bizName} - Official Digital Catalog & WhatsApp Ordering*\n\nHi! You can order directly via WhatsApp or view our latest product catalog.\nLocation: ${loc}\n\nPowered by Vyapar-Mitra Plus Bot. Reply 'MENU' for instant product list!`;
+    navigator.clipboard?.writeText(text);
+    toast.success("WhatsApp Digital Catalog text copied to clipboard!");
   }
 
-  function handleExportWhatsApp() {
-    const text = `*Vyapar-Mitra Plus Bank DPR Summary*\n\nApplicant: ${profile.fullName || "Entrepreneur"}\nBusiness: ${bizName} (${profile.categoryName || "Retail"})\nLocation: ${loc}\nProposed Project Cost: ₹${formattedCap}\nTarget Net Monthly Margin: 35% - 48%\n\nGenerated via Vyapar-Mitra Plus Co-Pilot.`;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+  // --- TAB 2: MARKETING & FESTIVAL BROADCAST BOT STATE ---
+  const festivalTemplates = [
+    {
+      id: "diwali",
+      title: "🪔 Festive Special Offer",
+      message: `Greetings from ${bizName}! Celebrate this festive season with exclusive 15% OFF on all items. Show this message at checkout or reply 'ORDER' to get home delivery! Offer valid till Sunday.`,
+    },
+    {
+      id: "clearance",
+      title: "⚡ Flash Clearance Sale",
+      message: `Special Alert from ${bizName}! Limited stock clearance sale in ${loc}. Buy 2 items & get 1 item FREE today! Reply 'CATALOG' to view items on WhatsApp.`,
+    },
+    {
+      id: "welcome",
+      title: "🎁 New Customer Discount",
+      message: `Welcome to ${bizName}! Get flat ₹50 OFF on your first purchase above ₹300. Use code VM50 on WhatsApp order or show at store.`,
+    },
+    {
+      id: "weekend",
+      title: "🌾 Weekend Super Saver",
+      message: `Weekend Savings at ${bizName}! Fresh wholesale stock arriving today. Free home delivery on orders above ₹500. Reply to order now!`,
+    },
+  ];
+
+  const [selectedTemplate, setSelectedTemplate] = useState(festivalTemplates[0].id);
+  const [broadcastMsg, setBroadcastMsg] = useState(festivalTemplates[0].message);
+  const [targetAudience, setTargetAudience] = useState("all");
+
+  function handleTemplateSelect(tId: string) {
+    const tmpl = festivalTemplates.find((t) => t.id === tId);
+    if (tmpl) {
+      setSelectedTemplate(tId);
+      setBroadcastMsg(tmpl.message.replace(`${bizName}`, profile.idea || "our store"));
+    }
+  }
+
+  function handleSendBroadcast() {
+    if (!broadcastMsg.trim()) {
+      toast.error("Please enter a valid message for the WhatsApp broadcast.");
+      return;
+    }
+    const audienceCount = targetAudience === "all" ? 184 : targetAudience === "repeat" ? 62 : 45;
+    toast.success(
+      `📢 Broadcast successfully queued! WhatsApp Bot is dispatching messages to ${audienceCount} customers.`,
+    );
+  }
+
+  // --- TAB 3: BULK WHOLESALE MANDI RFQ DISPATCHER STATE ---
+  const [rfqItem, setRfqItem] = useState("Bulk Inventory Stock");
+  const [rfqQty, setRfqQty] = useState("50 Units");
+  const [rfqNotes, setRfqNotes] = useState(
+    "Need fast delivery with wholesale trade discount invoice.",
+  );
+  const [rfqList, setRfqList] = useState([
+    {
+      id: "RFQ-401",
+      item: "50kg Premium Atta & Rice Bags",
+      mandi: `Regional APMC Mandi (${loc})`,
+      status: "3 Quotes Received",
+      bestPrice: "₹1,850 / bag (Save 14%)",
+    },
+    {
+      id: "RFQ-402",
+      item: "20x Fast Charging USB-C Cables & Chargers",
+      mandi: "District Wholesale Electronics Hub",
+      status: "2 Quotes Received",
+      bestPrice: "₹85 / unit (Save 25%)",
+    },
+  ]);
+
+  function handleDispatchRfq(e: React.FormEvent) {
+    e.preventDefault();
+    if (!rfqItem.trim() || !rfqQty.trim()) {
+      toast.error("Please enter required item and quantity.");
+      return;
+    }
+    const newRfq = {
+      id: `RFQ-${Math.floor(100 + Math.random() * 900)}`,
+      item: `${rfqQty} - ${rfqItem}`,
+      mandi: `District Mandi Network (${loc})`,
+      status: "Dispatched to 5 Vendors",
+      bestPrice: "Awaiting supplier responses...",
+    };
+    setRfqList([newRfq, ...rfqList]);
+    setRfqItem("");
+    setRfqQty("");
+    toast.success(`RFQ ${newRfq.id} dispatched to 5 wholesale vendors via WhatsApp API!`);
+  }
+
+  // --- TAB 4: AUTOMATED UPI SOUNDBOX & SMS BILLING STATE ---
+  const [billCustMobile, setBillCustMobile] = useState("");
+  const [billItem, setBillItem] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [recentBills, setRecentBills] = useState([
+    {
+      id: "BILL-701",
+      mobile: "+91 98765 12345",
+      items: "General Grocery & Snacks",
+      amount: 320,
+      paymentMethod: "PhonePe UPI",
+      time: "12:15 PM",
+      status: "SMS Sent",
+    },
+    {
+      id: "BILL-700",
+      mobile: "+91 99112 23344",
+      items: "Mobile Accessories Kit",
+      amount: 650,
+      paymentMethod: "GooglePay QR",
+      time: "11:40 AM",
+      status: "SMS Sent",
+    },
+  ]);
+
+  function handleGenerateBill(e: React.FormEvent) {
+    e.preventDefault();
+    if (!billAmount || isNaN(Number(billAmount))) {
+      toast.error("Please enter a valid numeric bill amount.");
+      return;
+    }
+    const newBill = {
+      id: `BILL-${Math.floor(700 + Math.random() * 300)}`,
+      mobile: billCustMobile.trim() || "+91 98000 00000",
+      items: billItem.trim() || "Retail Goods Purchase",
+      amount: Number(billAmount),
+      paymentMethod: "UPI Soundbox QR",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      status: "SMS Sent",
+    };
+    setRecentBills([newBill, ...recentBills]);
+    toast.success(
+      `Digital Bill ${newBill.id} generated! Instant SMS receipt dispatched to ${newBill.mobile}.`,
+    );
+    playAudioSoundbox(Number(billAmount));
+    setBillCustMobile("");
+    setBillItem("");
+    setBillAmount("");
+  }
+
+  function playAudioSoundbox(amount: number) {
+    if ("speechSynthesis" in window) {
+      const text = `Vyapar-Mitra Payment Alert: ${amount} Rupees Received on PhonePe UPI!`;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+      toast.info(`🔊 Speaker Alert: "₹${amount} Received on PhonePe UPI"`);
+    } else {
+      toast.info(`🔊 Simulated Speaker: "₹${amount} Received on UPI"`);
+    }
   }
 
   return (
@@ -137,8 +300,8 @@ export function PlusBusinessDashboard({
                 )}
               </div>
               <p className="text-xs text-purple-200 mt-1">
-                Advanced AI Business Management: Bank Project Reports, Daily Profit Ledger &
-                Wholesale Sourcing
+                Operational Automation Services: WhatsApp Order Bot, Customer Marketing Broadcasts,
+                Mandi RFQs & UPI Soundbox Billing
               </p>
             </div>
           </div>
@@ -150,7 +313,7 @@ export function PlusBusinessDashboard({
                 className="rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 px-5 py-3 text-xs font-black text-slate-950 shadow-lg shadow-amber-400/20 hover:scale-105 transition cursor-pointer flex items-center gap-2"
               >
                 <Zap size={16} className="fill-slate-950" />
-                <span>Get Plus Subscription (₹59/mo)</span>
+                <span>Upgrade to Plus (₹59/mo)</span>
               </button>
             ) : (
               <button
@@ -164,13 +327,25 @@ export function PlusBusinessDashboard({
         </div>
       </div>
 
-      {/* Plus Dashboard Tabs */}
+      {/* Free Tier Notice Banner */}
+      <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-950">
+        <div className="flex items-center gap-2.5">
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+          <span>
+            <strong>Free Business Advisory Included</strong>: AI Advisory, Bank DPR Reports, Unit
+            Economics & Govt Loan Schemes are <strong>100% FREE</strong> for all users. Plus
+            subscription only powers external messaging & automation.
+          </span>
+        </div>
+      </div>
+
+      {/* Operational Automation Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-slate-200">
         {[
-          { id: "dpr", label: "📄 Bank DPR Project Report", icon: FileText },
-          { id: "ledger", label: "💵 Daily Profit & Cashbook", icon: TrendingUp },
-          { id: "mandi", label: "📦 Wholesale Mandi Directory", icon: Package },
-          { id: "footfall", label: "📈 Local Footfall Analytics", icon: Building2 },
+          { id: "whatsapp-bot", label: "📲 WhatsApp Order Bot", icon: MessageSquare },
+          { id: "marketing-bot", label: "📢 Festival Broadcast Bot", icon: Megaphone },
+          { id: "rfq-dispatcher", label: "📦 Wholesale Mandi RFQs", icon: Package },
+          { id: "soundbox-billing", label: "🔊 UPI Soundbox & SMS Billing", icon: Volume2 },
         ].map((t) => (
           <button
             key={t.id}
@@ -188,299 +363,168 @@ export function PlusBusinessDashboard({
         ))}
       </div>
 
-      {/* TAB 1: BANK DPR PROJECT REPORT GENERATOR */}
-      {activeTab === "dpr" && (
-        <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+      {/* TAB 1: WHATSAPP BOT ORDER MANAGER */}
+      {activeTab === "whatsapp-bot" && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
             <div>
-              <h3 className="text-base font-black text-slate-950">
-                Official Bank DPR (Detailed Project Report)
+              <h3 className="text-base font-black text-slate-950 flex items-center gap-2">
+                <Bot className="text-emerald-600" size={20} />
+                WhatsApp Bot Storefront & Order Manager
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Formatted for PM MUDRA & PMEGP loan application submissions at nationalized banks.
+                Automated order collection, instant digital catalog responses, and order status
+                updates on WhatsApp.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handlePrintDpr}
+                onClick={handleShareCatalog}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
               >
-                <Printer size={14} />
-                <span>Print / Download PDF</span>
+                <Share2 size={14} />
+                <span>Share WhatsApp Catalog Text</span>
               </button>
               <button
-                onClick={handleExportWhatsApp}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                onClick={() => {
+                  setAutoReplyEnabled(!autoReplyEnabled);
+                  toast.info(
+                    `WhatsApp Auto-Reply is now ${!autoReplyEnabled ? "ENABLED 🟢" : "DISABLED 🔴"}`,
+                  );
+                }}
+                className={cn(
+                  "rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs",
+                  autoReplyEnabled
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-slate-200 text-slate-700 hover:bg-slate-300",
+                )}
               >
-                <Share2 size={14} />
-                <span>Export to WhatsApp</span>
+                <Zap size={14} />
+                <span>{autoReplyEnabled ? "Auto-Reply Active" : "Auto-Reply Off"}</span>
               </button>
             </div>
           </div>
 
-          {/* Printable Official DPR Document Preview */}
-          <div className="p-8 bg-white rounded-3xl border border-slate-300 shadow-md text-slate-900 space-y-6 font-sans">
-            <div className="border-b-2 border-slate-900 pb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-black uppercase text-slate-950">
-                  DETAILED PROJECT REPORT (DPR) FOR BANK CREDIT
-                </h2>
-                <p className="text-xs text-slate-600 font-semibold">
-                  Under PM MUDRA Yojana / PMEGP Credit Subsidy Scheme
-                </p>
-              </div>
-              <span className="rounded-md bg-slate-900 text-white px-3 py-1 text-xs font-black">
-                CONFIDENTIAL BANK DOC
-              </span>
-            </div>
-
-            {/* Applicant Details */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                  Applicant Name
-                </span>
-                <span className="font-extrabold text-slate-900">
-                  {profile.fullName || "Entrepreneur"}
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                  Proposed Enterprise
-                </span>
-                <span className="font-extrabold text-slate-900">{bizName}</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                  Target District / Location
-                </span>
-                <span className="font-extrabold text-slate-900">{loc}</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                  Total Project Cost
-                </span>
-                <span className="font-extrabold text-purple-700">₹{formattedCap}</span>
-              </div>
-            </div>
-
-            {/* Financial Means & Uses Table */}
-            <div>
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2">
-                1. Means of Finance & Capital Requirement Breakdown
-              </h4>
-              <table className="w-full text-xs text-left border-collapse border border-slate-200">
-                <thead>
-                  <tr className="bg-slate-100 font-extrabold text-slate-900">
-                    <th className="p-2.5 border border-slate-200">Head of Expenditure</th>
-                    <th className="p-2.5 border border-slate-200 text-right">Amount (₹)</th>
-                    <th className="p-2.5 border border-slate-200">Remarks / Supplier Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2.5 border border-slate-200 font-semibold">
-                      Initial Inventory Stock
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-right font-bold">
-                      ₹{Math.round(capitalNum * 0.5).toLocaleString("en-IN")}
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-slate-600">
-                      Fast-rotating stock (70% core items)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="p-2.5 border border-slate-200 font-semibold">
-                      Shop Premises Setup & Deposit
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-right font-bold">
-                      ₹{Math.round(capitalNum * 0.2).toLocaleString("en-IN")}
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-slate-600">
-                      Rented Commercial Premises
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="p-2.5 border border-slate-200 font-semibold">
-                      Working Capital Reserve
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-right font-bold">
-                      ₹{Math.round(capitalNum * 0.3).toLocaleString("en-IN")}
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-slate-600">
-                      Cashflow reserve for 90 days
-                    </td>
-                  </tr>
-                  <tr className="bg-purple-50 font-black">
-                    <td className="p-2.5 border border-slate-200 text-purple-950">
-                      TOTAL PROPOSED PROJECT BUDGET
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-right text-purple-700">
-                      ₹{formattedCap}
-                    </td>
-                    <td className="p-2.5 border border-slate-200 text-purple-950">
-                      100% Eligible under MUDRA Shishu/Kishore
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Projected Profitability & Payback */}
-            <div>
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2">
-                2. Operational Viability & Income Projections
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
-                    Expected Gross Margin
-                  </span>
-                  <span className="text-base font-black text-slate-900">35% to 48%</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
-                    Target Daily Sales Volume
-                  </span>
-                  <span className="text-base font-black text-slate-900">₹2,500 - ₹4,000 / day</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
-                    Estimated Payback Period
-                  </span>
-                  <span className="text-base font-black text-emerald-600">4.2 Months</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 font-semibold">
-              <span>Vyapar-Mitra AI Verification ID: VM-DPR-{Date.now().toString().slice(-6)}</span>
-              <span>Official MSME Portal Compliant</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: DAILY PROFIT & CASHBOOK LEDGER */}
-      {activeTab === "ledger" && (
-        <div className="space-y-6 animate-in fade-in duration-150">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-5 bg-white rounded-3xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">
-                Total Daily Income
-              </span>
-              <span className="text-2xl font-black text-emerald-600 mt-1 block">
-                +₹{totalIncome.toLocaleString("en-IN")}
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium">Recorded today</span>
-            </div>
-
-            <div className="p-5 bg-white rounded-3xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">
-                Total Daily Expenses
-              </span>
-              <span className="text-2xl font-black text-rose-600 mt-1 block">
-                -₹{totalExpense.toLocaleString("en-IN")}
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium">Stock & bills paid</span>
-            </div>
-
-            <div className="p-5 bg-slate-900 text-white rounded-3xl shadow-md border border-slate-800">
-              <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">
-                Net Daily Profit
-              </span>
-              <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                ₹{netProfit.toLocaleString("en-IN")}
-              </span>
-              <span className="text-[11px] text-emerald-300 font-bold">
-                {netProfit >= 0 ? "Positive Cashflow 🚀" : "Over-spending alert"}
-              </span>
-            </div>
-          </div>
-
-          {/* Add New Entry Form */}
+          {/* Quick Create Simulated WhatsApp Order Form */}
           <form
-            onSubmit={handleAddEntry}
-            className="p-4 bg-white rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3"
+            onSubmit={handleAddOrder}
+            className="p-5 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-4"
           >
-            <select
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as any)}
-              className="h-10 rounded-xl bg-slate-100 border border-slate-200 px-3 text-xs font-bold text-slate-800 outline-none"
-            >
-              <option value="income">🟢 Income (+)</option>
-              <option value="expense">🔴 Expense (-)</option>
-            </select>
-
-            <input
-              type="text"
-              placeholder="Description (e.g. UPI sales, Rent, Stock)"
-              value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
-              className="flex-1 h-10 rounded-xl bg-slate-50 border border-slate-200 px-3.5 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
-            />
-
-            <input
-              type="number"
-              placeholder="Amount (₹)"
-              value={newAmount}
-              onChange={(e) => setNewAmount(e.target.value)}
-              className="w-32 h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-slate-900"
-            />
-
+            <h4 className="text-xs font-black text-slate-950 uppercase tracking-wider flex items-center gap-1.5">
+              <Plus size={14} className="text-purple-600" />
+              Simulate New WhatsApp Customer Order
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <input
+                type="text"
+                placeholder="Customer Name (e.g. Suresh)"
+                value={newCustName}
+                onChange={(e) => setNewCustName(e.target.value)}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              />
+              <input
+                type="text"
+                placeholder="WhatsApp Phone Number"
+                value={newCustPhone}
+                onChange={(e) => setNewCustPhone(e.target.value)}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              />
+              <input
+                type="text"
+                placeholder="Ordered Items & Quantities"
+                value={newCustItems}
+                onChange={(e) => setNewCustItems(e.target.value)}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              />
+              <input
+                type="number"
+                placeholder="Amount (₹)"
+                value={newCustAmount}
+                onChange={(e) => setNewCustAmount(e.target.value)}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              />
+            </div>
             <button
               type="submit"
-              className="h-10 px-5 rounded-xl bg-slate-950 text-white text-xs font-black hover:bg-slate-800 transition cursor-pointer shrink-0 flex items-center gap-1.5"
+              className="h-10 px-5 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 transition cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <Plus size={15} />
-              <span>Add Entry</span>
+              <Send size={14} />
+              <span>Add WhatsApp Order</span>
             </button>
           </form>
 
-          {/* Entries Table */}
+          {/* Orders Log Table */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
               <h4 className="text-xs font-black text-slate-950 uppercase tracking-wider">
-                Today's Daily Ledger Log ({entries.length} Transactions)
+                Live WhatsApp Orders Queue ({orders.length})
               </h4>
+              <span className="text-[11px] text-emerald-700 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                Connected to WhatsApp Business API
+              </span>
             </div>
 
             <div className="divide-y divide-slate-100">
-              {entries.map((entry) => (
+              {orders.map((ord) => (
                 <div
-                  key={entry.id}
-                  className="p-4 flex items-center justify-between hover:bg-slate-50 transition"
+                  key={ord.id}
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition"
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        "size-2.5 rounded-full",
-                        entry.type === "income" ? "bg-emerald-500" : "bg-rose-500",
-                      )}
-                    />
-                    <div>
-                      <h5 className="text-xs font-bold text-slate-900">{entry.desc}</h5>
-                      <span className="text-[10px] text-slate-400 font-medium">{entry.time}</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-950">{ord.id}</span>
+                      <span className="text-xs font-bold text-slate-800">• {ord.customerName}</span>
+                      <span className="text-[11px] text-slate-400 font-medium">({ord.phone})</span>
+                      <span className="text-[10px] text-slate-400 font-medium ml-1">
+                        ({ord.time})
+                      </span>
                     </div>
+                    <p className="text-xs text-slate-600 font-medium">📦 Items: {ord.items}</p>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <span
-                      className={cn(
-                        "text-sm font-black",
-                        entry.type === "income" ? "text-emerald-600" : "text-rose-600",
-                      )}
-                    >
-                      {entry.type === "income" ? "+" : "-"}₹{entry.amount.toLocaleString("en-IN")}
+                  <div className="flex items-center justify-between sm:justify-end gap-4">
+                    <span className="text-sm font-black text-slate-900">
+                      ₹{ord.amount.toLocaleString("en-IN")}
                     </span>
 
-                    <button
-                      onClick={() => handleDeleteEntry(entry.id)}
-                      className="p-1 text-slate-300 hover:text-rose-600 transition cursor-pointer"
+                    <span
+                      className={cn(
+                        "px-2.5 py-1 rounded-full text-[10px] font-black uppercase",
+                        ord.status === "Pending" && "bg-amber-100 text-amber-800",
+                        ord.status === "Accepted" && "bg-blue-100 text-blue-800",
+                        ord.status === "Dispatched" && "bg-purple-100 text-purple-800",
+                        ord.status === "Delivered" && "bg-emerald-100 text-emerald-800",
+                      )}
                     >
-                      <Trash2 size={14} />
-                    </button>
+                      {ord.status}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      {ord.status === "Pending" && (
+                        <button
+                          onClick={() => handleUpdateOrderStatus(ord.id, "Accepted")}
+                          className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition cursor-pointer"
+                        >
+                          Accept
+                        </button>
+                      )}
+                      {ord.status === "Accepted" && (
+                        <button
+                          onClick={() => handleUpdateOrderStatus(ord.id, "Dispatched")}
+                          className="px-2.5 py-1 rounded-lg bg-purple-600 text-white text-[11px] font-bold hover:bg-purple-700 transition cursor-pointer"
+                        >
+                          Dispatch
+                        </button>
+                      )}
+                      {ord.status === "Dispatched" && (
+                        <button
+                          onClick={() => handleUpdateOrderStatus(ord.id, "Delivered")}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition cursor-pointer"
+                        >
+                          Mark Delivered
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -489,121 +533,362 @@ export function PlusBusinessDashboard({
         </div>
       )}
 
-      {/* TAB 3: WHOLESALE MANDI DIRECTORY */}
-      {activeTab === "mandi" && (
-        <div className="space-y-4 animate-in fade-in duration-150">
+      {/* TAB 2: CUSTOMER MARKETING & FESTIVAL BROADCAST BOT */}
+      {activeTab === "marketing-bot" && (
+        <div className="space-y-6 animate-in fade-in duration-150">
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-            <h3 className="text-base font-black text-slate-950">
-              Verified Wholesale Sourcing Mandis near {loc}
+            <h3 className="text-base font-black text-slate-950 flex items-center gap-2">
+              <Megaphone className="text-purple-600" size={20} />
+              Automated Customer Marketing & Festive Broadcast Bot
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Direct APMC markets & wholesale distributors offering 8% to 15% discount margins.
+              Send festive greetings, discount flyers, and promotional offers directly to saved
+              WhatsApp contacts in 1-click.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              {
-                name: `Regional APMC Wholesale Mandi (${loc})`,
-                distance: "3.5 km away",
-                discount: "12% below retail",
-                items: "Fresh Produce, Pulses, Grains, Grocery stock",
-                hack: "Visit between 5:30 AM and 8:00 AM for fresh auction prices.",
-              },
-              {
-                name: "District Electronics Wholesale Hub",
-                distance: "7.2 km away",
-                discount: "20%-35% margin",
-                items: "Mobile Chargers, Tempered Glass, Cables, UPI Soundboxes",
-                hack: "Buy minimum 10-unit bundles to get trade invoice pricing.",
-              },
-              {
-                name: "Central Textiles & Garment Mandi",
-                distance: "12 km away",
-                discount: "30% margin",
-                items: "Ready-made garments, Cotton wear, Hosiery",
-                hack: "Ask for GST tax credit invoice to claim input credit.",
-              },
-              {
-                name: "State FMCG & Packaging Distributor",
-                distance: "5.0 km away",
-                discount: "8%-10% margin",
-                items: "Packaged snacks, beverages, carry bags, billing rolls",
-                hack: "Set up weekly auto-delivery to save transport cost.",
-              },
-            ].map((m, idx) => (
-              <div
-                key={idx}
-                className="p-5 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-3"
-              >
-                <div className="flex items-start justify-between">
+          {/* Festival & Event Templates Selector */}
+          <div>
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-3">
+              Select Festival / Offer Template:
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {festivalTemplates.map((tmpl) => (
+                <button
+                  key={tmpl.id}
+                  onClick={() => handleTemplateSelect(tmpl.id)}
+                  className={cn(
+                    "p-4 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between space-y-2",
+                    selectedTemplate === tmpl.id
+                      ? "bg-purple-900 text-white border-purple-900 shadow-md"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-purple-300",
+                  )}
+                >
                   <div>
-                    <h4 className="text-sm font-black text-slate-950">{m.name}</h4>
-                    <span className="text-[10px] font-bold text-slate-400">{m.distance}</span>
+                    <h5 className="text-xs font-black">{tmpl.title}</h5>
+                    <p
+                      className={cn(
+                        "text-[11px] mt-1 line-clamp-2",
+                        selectedTemplate === tmpl.id ? "text-purple-200" : "text-slate-500",
+                      )}
+                    >
+                      {tmpl.message}
+                    </p>
                   </div>
-                  <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-black">
-                    {m.discount}
+                  <span
+                    className={cn(
+                      "text-[10px] font-extrabold uppercase",
+                      selectedTemplate === tmpl.id ? "text-amber-300" : "text-purple-600",
+                    )}
+                  >
+                    {selectedTemplate === tmpl.id ? "Selected ✓" : "Use Template →"}
                   </span>
-                </div>
+                </button>
+              ))}
+            </div>
+          </div>
 
-                <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                  • **Key Items**: {m.items}
-                </p>
-
-                <div className="p-2.5 rounded-xl bg-purple-50 border border-purple-100 text-[11px] text-purple-950 font-semibold">
-                  💡 **Profit Hack**: {m.hack}
-                </div>
+          {/* Broadcast Composer */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h4 className="text-xs font-black text-slate-950 uppercase tracking-wider">
+                Broadcast Message Preview & Target Audience
+              </h4>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-600">Target Audience:</span>
+                <select
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value)}
+                  className="h-9 rounded-xl bg-slate-100 border border-slate-200 px-3 text-xs font-bold text-slate-800 outline-none"
+                >
+                  <option value="all">All Saved Contacts (184)</option>
+                  <option value="repeat">Repeat Buyers (62)</option>
+                  <option value="inactive">Dormant (30+ days inactive - 45)</option>
+                </select>
               </div>
-            ))}
+            </div>
+
+            <textarea
+              rows={4}
+              value={broadcastMsg}
+              onChange={(e) => setBroadcastMsg(e.target.value)}
+              className="w-full rounded-2xl bg-slate-50 border border-slate-200 p-4 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              placeholder="Write custom marketing message..."
+            />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                <Users size={15} className="text-purple-600" />
+                <span>
+                  Ready to send to{" "}
+                  <strong>
+                    {targetAudience === "all" ? 184 : targetAudience === "repeat" ? 62 : 45}
+                  </strong>{" "}
+                  verified WhatsApp numbers.
+                </span>
+              </div>
+              <button
+                onClick={handleSendBroadcast}
+                className="h-11 px-6 rounded-2xl bg-purple-900 text-white text-xs font-black hover:bg-purple-800 transition cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              >
+                <Send size={15} />
+                <span>Dispatch Broadcast via WhatsApp</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 4: LOCAL FOOTFALL ANALYTICS */}
-      {activeTab === "footfall" && (
-        <div className="space-y-4 animate-in fade-in duration-150">
+      {/* TAB 3: BULK WHOLESALE MANDI RFQ DISPATCHER */}
+      {activeTab === "rfq-dispatcher" && (
+        <div className="space-y-6 animate-in fade-in duration-150">
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
-            <h3 className="text-base font-black text-slate-950">
-              Customer Footfall & Traffic Analytics ({loc})
+            <h3 className="text-base font-black text-slate-950 flex items-center gap-2">
+              <Package className="text-amber-600" size={20} />
+              Bulk Wholesale Mandi RFQ Dispatcher
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Heatmap analysis of customer walk-in hours and competitor density in your district.
+              Send single-click bulk price inquiries (RFQ) to regional APMC mandi wholesalers & get
+              competitive discount quotes.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-5 bg-white rounded-3xl border border-slate-200">
-              <span className="text-xs font-bold text-slate-400 block uppercase">
-                Peak Customer Hours
-              </span>
-              <span className="text-lg font-black text-slate-900 mt-1 block">
-                5:30 PM - 8:30 PM
-              </span>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Highest walk-in density after office & market hours.
-              </p>
+          {/* New RFQ Dispatch Form */}
+          <form
+            onSubmit={handleDispatchRfq}
+            className="p-5 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-4"
+          >
+            <h4 className="text-xs font-black text-slate-950 uppercase tracking-wider flex items-center gap-1.5">
+              <Plus size={14} className="text-amber-600" />
+              Create New Mandi Wholesale Price RFQ
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input
+                type="text"
+                placeholder="Stock Item Required (e.g. Rice, Packaging Boxes, Cable)"
+                value={rfqItem}
+                onChange={(e) => setRfqItem(e.target.value)}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 px-3.5 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              />
+              <input
+                type="text"
+                placeholder="Quantity Required (e.g. 50 kg, 100 units)"
+                value={rfqQty}
+                onChange={(e) => setRfqQty(e.target.value)}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 px-3.5 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              />
+              <input
+                type="text"
+                placeholder="Specific Requirements / Delivery Date"
+                value={rfqNotes}
+                onChange={(e) => setRfqNotes(e.target.value)}
+                className="h-10 rounded-xl bg-slate-50 border border-slate-200 px-3.5 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+              />
+            </div>
+            <button
+              type="submit"
+              className="h-10 px-5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black hover:bg-amber-400 transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Send size={14} />
+              <span>Dispatch RFQ to 5 Local Mandi Wholesalers</span>
+            </button>
+          </form>
+
+          {/* Active RFQ Requests Table */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <h4 className="text-xs font-black text-slate-950 uppercase tracking-wider">
+                Wholesale RFQs & Price Comparisons ({rfqList.length})
+              </h4>
             </div>
 
-            <div className="p-5 bg-white rounded-3xl border border-slate-200">
-              <span className="text-xs font-bold text-slate-400 block uppercase">
-                Competitor Density
-              </span>
-              <span className="text-lg font-black text-purple-700 mt-1 block">
-                Moderate (2-5 shops)
-              </span>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Good market volume with scope for digital UPI differentiation.
-              </p>
+            <div className="divide-y divide-slate-100">
+              {rfqList.map((rfq) => (
+                <div
+                  key={rfq.id}
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-950">{rfq.id}</span>
+                      <span className="text-xs font-bold text-slate-800">• {rfq.item}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Mandi Hub: {rfq.mandi}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-4">
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200">
+                      🏷️ {rfq.bestPrice}
+                    </span>
+                    <span className="text-[10px] font-black uppercase text-purple-700 bg-purple-100 px-2.5 py-1 rounded-full">
+                      {rfq.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: AUTOMATED UPI SOUNDBOX & SMS BILLING */}
+      {activeTab === "soundbox-billing" && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs">
+            <h3 className="text-base font-black text-slate-950 flex items-center gap-2">
+              <Volume2 className="text-blue-600" size={20} />
+              Automated UPI Soundbox & Instant SMS Billing Terminal
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Generate instant digital bill receipts sent via SMS to customer phones, with audio
+              speaker transaction notifications.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Quick POS Terminal Form */}
+            <form
+              onSubmit={handleGenerateBill}
+              className="md:col-span-2 p-5 bg-white rounded-3xl border border-slate-200 shadow-xs space-y-4"
+            >
+              <h4 className="text-xs font-black text-slate-950 uppercase tracking-wider flex items-center gap-1.5">
+                <Receipt size={15} className="text-blue-600" />
+                Quick Digital Bill Generator
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-700 mb-1 block">
+                    Customer Mobile Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="+91 98765 43210"
+                    value={billCustMobile}
+                    onChange={(e) => setBillCustMobile(e.target.value)}
+                    className="w-full h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-700 mb-1 block">
+                    Total Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Enter amount (e.g. 250)"
+                    value={billAmount}
+                    onChange={(e) => setBillAmount(e.target.value)}
+                    className="w-full h-10 rounded-xl bg-slate-50 border border-slate-200 px-3 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-extrabold text-slate-700 mb-1 block">
+                  Items / Note Summary
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 2x Snacks, 1x Tea Packet"
+                  value={billItem}
+                  onChange={(e) => setBillItem(e.target.value)}
+                  className="w-full h-10 rounded-xl bg-slate-50 border border-slate-200 px-3.5 text-xs font-medium text-slate-900 outline-none focus:bg-white focus:border-slate-900"
+                />
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                <button
+                  type="submit"
+                  className="flex-1 h-11 rounded-2xl bg-blue-600 text-white text-xs font-black hover:bg-blue-700 transition cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Smartphone size={15} />
+                  <span>Generate & Send SMS Receipt</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => playAudioSoundbox(Number(billAmount) || 250)}
+                  className="h-11 px-4 rounded-2xl border border-blue-200 bg-blue-50 text-blue-900 text-xs font-bold hover:bg-blue-100 transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Play size={14} className="fill-blue-900" />
+                  <span>Test Speaker</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Simulated UPI Soundbox Hardware Widget */}
+            <div className="p-5 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white rounded-3xl border border-slate-800 shadow-lg flex flex-col justify-between space-y-4">
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="text-emerald-400 animate-pulse" size={20} />
+                    <h4 className="text-xs font-black uppercase text-white">UPI Soundbox Pro</h4>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 text-[10px] font-black">
+                    ONLINE 🟢
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">
+                  Connected to PhonePe & GooglePay Merchant QR. Instant voice alerts in
+                  English/Hindi.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/50 space-y-2 text-xs">
+                <div className="flex justify-between text-slate-400 text-[10px] font-bold uppercase">
+                  <span>Last Voice Alert</span>
+                  <span>Just now</span>
+                </div>
+                <div className="text-emerald-300 font-extrabold text-sm flex items-center gap-1.5">
+                  <CheckCircle2 size={16} />
+                  <span>"₹{billAmount || 250} Received on PhonePe UPI"</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => playAudioSoundbox(Number(billAmount) || 250)}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-black hover:bg-emerald-400 transition cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              >
+                <Play size={14} className="fill-slate-950" />
+                <span>Play Soundbox Voice Alert</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Recent Digital Receipts Log */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <h4 className="text-xs font-black text-slate-950 uppercase tracking-wider">
+                Recent Digital SMS Receipts ({recentBills.length})
+              </h4>
             </div>
 
-            <div className="p-5 bg-white rounded-3xl border border-slate-200">
-              <span className="text-xs font-bold text-slate-400 block uppercase">
-                UPI Transaction Share
-              </span>
-              <span className="text-lg font-black text-emerald-600 mt-1 block">72% Digital</span>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Customers prefer PhonePe/GooglePay QR soundboxes.
-              </p>
+            <div className="divide-y divide-slate-100">
+              {recentBills.map((b) => (
+                <div
+                  key={b.id}
+                  className="p-4 flex items-center justify-between hover:bg-slate-50 transition"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-950">{b.id}</span>
+                      <span className="text-xs font-bold text-slate-800">• {b.mobile}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">({b.time})</span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">{b.items}</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-black text-emerald-600">
+                      +₹{b.amount.toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
+                      {b.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
