@@ -59,7 +59,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { AiProfileTrainerWidget } from "@/components/AiProfileTrainerWidget";
-import { GeminiAiChatbot } from "@/components/GeminiAiChatbot";
+import {
+  GeminiAiChatbot,
+  generateConversationalResponse,
+  stripEmDashes,
+} from "@/components/GeminiAiChatbot";
 import { OpenStreetMapWidget } from "@/components/OpenStreetMapWidget";
 import { VyaparMitraLogo } from "@/components/VyaparMitraLogo";
 import { getCurrentUserRecord, saveUserRecord, UserRecord } from "@/lib/db";
@@ -752,72 +756,8 @@ function AiAssistant({
   }
 
   function generateGeminiAiAnswer(query: string): string {
-    const q = query.toLowerCase();
-    const loc = profile.location || "your district";
-    const biz = profile.idea || "your business";
-    const cat = (profile.categoryName || "").toLowerCase();
-
-    // 1. Government Schemes & Loans
-    if (
-      q.includes("loan") ||
-      q.includes("mudra") ||
-      q.includes("scheme") ||
-      q.includes("fund") ||
-      q.includes("subsidy") ||
-      q.includes("government") ||
-      q.includes("udyam") ||
-      q.includes("govt")
-    ) {
-      if (language === "हिंदी") {
-        return `🏛️ **${loc} के लिए सरकारी योजनाएं और लोन सलाह (Gemini 2.5 AI)**:\n\n1. **PM MUDRA योजना (PMMY)**:\n   • **शिशु लोन**: ₹50,000 तक बिना किसी गारंटी के (0% प्रोसेसिंग फीस).\n   • **किशोर लोन**: ₹50,000 से ₹5 लाख तक.\n2. **PMEGP सब्सिडी योजना**: नए प्रोजेक्ट्स के लिए 15% से 35% सरकारी सब्सिडी (KVIC/DIC द्वारा).\n3. **Udyam फ्री रजिस्ट्रेशन**: udyamregistration.gov.in पर 15 मिनट में फ्री MSME सर्टिफिकेट प्राप्त करें.\n4. **JanSamarth पोर्टल**: jansamarth.in पर एक ही आवेदन से 125+ बैंकों में अप्लाई करें!`;
-      }
-      if (language === "मराठी") {
-        return `🏛️ **${loc} साठी अधिकृत शासकीय योजना (Gemini 2.5 AI)**:\n\n1. **PM MUDRA योजना (PMMY)**: ₹50,000 ते ₹10 लाख विना-तारण कर्ज.\n2. **PMEGP सबसिडी योजना**: 15% ते 35% शासकीय सबसिडी.\n3. **Udyam नोंदणी**: udyamregistration.gov.in वर मोफत MSME प्रमाणपत्र मिळवा.\n4. **JanSamarth पोर्टल**: jansamarth.in द्वारे थेट अर्ज करा!`;
-      }
-      return `🏛️ **Official Government Schemes & Credit Advisor (Gemini 2.5 AI)**:\n\n1. **PM MUDRA Yojana (PMMY)**:\n   • **Shishu Loan**: Up to ₹50,000 with 0 collateral & 0% processing fee.\n   • **Kishore Loan**: ₹50,000 to ₹5 Lakh.\n   • **Tarun Loan**: ₹5 Lakh to ₹10 Lakh.\n2. **PMEGP Subsidy Scheme**: 15% (Urban) to 35% (Rural/Special Category) Govt Capital Subsidy on project cost.\n3. **CGTMSE Guarantee**: 100% collateral-free bank loan coverage up to ₹2–5 Crore.\n4. **Udyam Registration**: Free 15-minute MSME certificate on **udyamregistration.gov.in**.\n5. **JanSamarth Portal**: Apply to 125+ banks via **jansamarth.in**.`;
-    }
-
-    // 2. Financial Break-Even & Profit Calculator
-    if (
-      q.includes("profit") ||
-      q.includes("revenue") ||
-      q.includes("break-even") ||
-      q.includes("margin") ||
-      q.includes("cost") ||
-      q.includes("calculate") ||
-      q.includes("money")
-    ) {
-      return `📊 **Financial Economics & Profit Breakdown for ${biz} in ${loc}**:\n\n• **Target Gross Margin**: 35% – 52%\n• **Monthly Fixed Overhead**: ₹12,000 (Rent) + ₹3,500 (Electricity & Staff)\n• **Estimated Break-Even**: ~4.2 Months to recoup initial ₹${profile.capital} capital\n• **Daily Target Volume**: ~40-60 items/day to maintain net positive cash flow\n\n💡 *Tip*: Maintain 50% capital for inventory and 30% for shop setup!`;
-    }
-
-    // 3. Stocking & Inventory Advice
-    if (
-      q.includes("stock") ||
-      q.includes("inventory") ||
-      q.includes("supplier") ||
-      q.includes("avoid") ||
-      q.includes("item") ||
-      q.includes("buy")
-    ) {
-      if (cat.includes("mobile") || cat.includes("electronics")) {
-        return `📦 **Mobile Shop Inventory Advisory (${loc})**:\n\n✅ **DO STOCK**: 5G Budget Phones under ₹12,000, 65W/100W Fast Type-C Chargers, Tempered Glass & Back Covers.\n❌ **DON'T STOCK**: 4G Phones above ₹15,000 (buyers prefer 5G; high dead inventory risk), obsolete micro-USB cables.\n💡 **PROFIT HACK**: Bundle Screen Protector + Back Cover for an extra +₹180 profit per phone!`;
-      }
-      return `📦 **Inventory & Supplier Sourcing Advisory (${loc})**:\n\n✅ **DO STOCK**: High-demand fast rotating items (under 14-day cycle), standardized accessories at billing counter.\n❌ **DON'T STOCK**: High-value unbranded goods without warranty or bulk stock without pre-orders.\n💡 **PROFIT HACK**: Source from verified wholesale mandis within 1–2 km of ${loc}.`;
-    }
-
-    // 4. Rent & Competitor Risk
-    if (
-      q.includes("rent") ||
-      q.includes("location") ||
-      q.includes("footfall") ||
-      q.includes("competitor") ||
-      q.includes("risk")
-    ) {
-      return `📍 **Location & Competitor Risk Assessment (${loc})**:\n\n• **Optimal Monthly Rent**: ₹8,000 – ₹16,000/month\n• **Peak Footfall Hours**: 11:00 AM – 1:30 PM & 5:30 PM – 8:30 PM\n• **Competitor Strategy**: Differentiate through digital UPI payments, quick turnaround, and verified local sourcing!`;
-    }
-
-    // 5. Default General Response
-    return `⚡ **Gemini 2.5 AI Co-Pilot Recommendation for ${biz}**:\n\nHello ${profile.fullName}! For running a successful **${biz}** (${profile.categoryName}) in **${profile.location}**:\n\n1. **Udyam Free MSME Registration**: Register on udyamregistration.gov.in to unlock collateral-free bank loans.\n2. **Digital UPI Payment Stand**: Boosts walk-in customer trust and transaction speed.\n3. **Inventory Management**: Keep 50% of your ₹${profile.capital} capital reserved for fast-selling stock.\n\nAsk me any specific question about loans, stocking, rent, or daily profit calculations!`;
+    const raw = generateConversationalResponse(query, profile, language);
+    return stripEmDashes(raw);
   }
 
   function send(event: FormEvent) {
