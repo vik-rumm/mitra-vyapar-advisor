@@ -25,6 +25,11 @@ import {
   Zap,
   Cpu,
   BrainCircuit,
+  Paperclip,
+  ThumbsUp,
+  ThumbsDown,
+  FileText,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserRecord } from "@/lib/db";
@@ -37,6 +42,7 @@ interface ChatMessage {
   text: string;
   timestamp: string;
   modelUsed?: string;
+  feedback?: "up" | "down";
 }
 
 interface GeminiAiChatbotProps {
@@ -60,7 +66,8 @@ export function GeminiAiChatbot({
       typeof window !== "undefined" ? localStorage.getItem("vyapar_chat_history") : null;
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {
         // Fall back
       }
@@ -69,9 +76,9 @@ export function GeminiAiChatbot({
       {
         id: "welcome-1",
         from: "ai",
-        text: `Namaste ${profile.fullName || "Entrepreneur"}! ⚡ I am your **Vyapar AI Business Co-Pilot** (Powered by Gemini 1.5/2.0 & Groq AI).\n\nI have loaded your real business context:\n• **Idea**: ${profile.idea || "Micro Shop"} (${profile.categoryName || "Retail"})\n• **Location**: ${profile.location || "Local Market"}\n• **Capital**: ₹${Number(profile.capital || 50000).toLocaleString("en-IN")}\n\nAsk me anything about **collateral-free loans**, **exact profit math**, **wholesale sourcing**, or **competitor risk**!`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        modelUsed: "Gemini 1.5 Flash",
+        text: `Hey ${profile.fullName || "Entrepreneur"}! 👋 What can I help you with today?\n\nI have loaded your active profile:\n• **Business**: ${profile.idea || "Micro Business"} (${profile.categoryName || "Retail Shop"})\n• **Location**: ${profile.location || "Local Market"}\n• **Capital**: ₹${Number(profile.capital || 50000).toLocaleString("en-IN")}\n\nAsk me about **PM Mudra loans**, **exact profit math**, **wholesale sourcing mandis**, or **mandatory permits**!`,
+        timestamp: "Just now",
+        modelUsed: "Vyapar AI Agent",
       },
     ];
   });
@@ -81,6 +88,10 @@ export function GeminiAiChatbot({
   const [isListening, setIsListening] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Attachment state for document upload simulation
+  const [attachedFile, setAttachedFile] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI Model Selection & API Keys
   const [selectedEngine, setSelectedEngine] = useState<"gemini" | "groq" | "deepseek">(() => {
@@ -147,6 +158,16 @@ export function GeminiAiChatbot({
     window.speechSynthesis.speak(utterance);
   }
 
+  // Thumbs Feedback Handler
+  function handleFeedback(id: string, rating: "up" | "down") {
+    setMessages((prev) => prev.map((msg) => (msg.id === id ? { ...msg, feedback: rating } : msg)));
+    if (rating === "up") {
+      toast.success("Thanks for your positive feedback! 👍");
+    } else {
+      toast.info("Feedback recorded. We'll refine response accuracy.");
+    }
+  }
+
   // Copy to clipboard
   function handleCopy(id: string, text: string) {
     navigator.clipboard.writeText(text);
@@ -161,7 +182,8 @@ export function GeminiAiChatbot({
       id: Date.now().toString(),
       from: "ai",
       text: `Chat reset! Ask your next business question for **${profile.idea || "your shop"}** in **${profile.location}**.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: "Just now",
+      modelUsed: "Vyapar AI Agent",
     };
     setMessages([welcomeMsg]);
     toast.success("Chat history cleared");
@@ -196,6 +218,15 @@ export function GeminiAiChatbot({
     recognition.start();
   }
 
+  // Attachment handler
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachedFile(file.name);
+      toast.success(`Attached file: ${file.name}`);
+    }
+  }
+
   // Save API keys
   function handleSaveKeys() {
     if (typeof window !== "undefined") {
@@ -206,8 +237,7 @@ export function GeminiAiChatbot({
     toast.success("AI Configuration saved!");
   }
 
-  // Generate dynamic response using Gemini, Groq, or Deep Analytical Engine
-  // Generate dynamic response using Gemini, Groq, or Deep Analytical Engine
+  // Generate dynamic AI response (Live LLM API + Conversational Fallback)
   async function getAiResponse(
     userQuery: string,
     history: ChatMessage[],
@@ -225,15 +255,14 @@ User Business Profile & AI Trained Context:
 - Top Daily Business Bottleneck: ${profile.mainChallenge || "Customer Footfall & Wholesale Sourcing"}
 - Nearby Competitor Density: ${profile.competitorCount || "Moderate (2-5 shops)"}
 - Digital & Legal Registrations: ${profile.hasGstOrUdyam || "Udyam MSME + UPI Active"}
-- AI Profile Training Level: ${profile.aiTrainingLevel || 76}% Trained
 - Preferred Language: ${language}
 
-Task: Provide clear, non-generic, practical, hyper-local business advice. Cite the user's specific trained context (e.g. premises, monthly profit goal, top bottleneck) when relevant. Include specific numbers, margins, real government portals (udyamregistration.gov.in, jansamarth.in, kviconline.gov.in, foscos.fssai.gov.in), and actionable steps. Format with clean Markdown headers, bold text, and bullet points.`;
+Task: Provide clear, non-generic, natural, hyper-local business advice. If the user asks a simple greeting ("hi", "hello", "hey"), greet them warmly and ask how to help. Include specific numbers, margins, real government portals (udyamregistration.gov.in, jansamarth.in, kviconline.gov.in, foscos.fssai.gov.in), and actionable steps. Format with clean Markdown headers, bold text, and bullet points.`;
 
     // Filter recent chat turns for multi-turn context memory (excluding generic welcome)
     const recentHistory = history.slice(-6).filter((m) => !m.id.startsWith("welcome"));
 
-    // 1. Groq / Llama-3.3-70B API (With Multi-Turn Context Memory)
+    // 1. Groq / Llama-3.3-70B API
     if (selectedEngine === "groq" && groqApiKey) {
       try {
         const groqMessages = [
@@ -268,7 +297,7 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
       }
     }
 
-    // 2. Google Gemini REST API (1.5 Flash -> 2.0 Flash -> 1.5 Pro) with Multi-Turn Memory
+    // 2. Google Gemini REST API
     const geminiKey =
       apiKey ||
       (import.meta as unknown as { env: Record<string, string> }).env?.["VITE_GEMINI_API_KEY"];
@@ -319,9 +348,9 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
       }
     }
 
-    // 3. Deep Analytical Expert AI Engine (High Quality Dynamic Synthesis)
-    const synthesizedText = generateDeepAnalyticalResponse(userQuery, profile, language);
-    return { text: synthesizedText, modelName: "Vyapar Intelligence Engine 2.5" };
+    // 3. Conversational AI Engine with Intent Analysis
+    const synthesizedText = generateConversationalResponse(userQuery, profile, language);
+    return { text: synthesizedText, modelName: "Vyapar AI Agent" };
   }
 
   // Handle Submit
@@ -330,16 +359,19 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
     const query = (directQuery || input).trim();
     if (!query || isThinking) return;
 
+    const fullQuery = attachedFile ? `[Attached Document: ${attachedFile}]\n${query}` : query;
+
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       from: "user",
-      text: query,
+      text: fullQuery,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
+    setAttachedFile(null);
     setIsThinking(true);
 
     try {
@@ -348,7 +380,7 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
         id: `ai-${Date.now()}`,
         from: "ai",
         text,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: "Just now",
         modelUsed: modelName,
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -366,35 +398,33 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
       {/* Backdrop overlay click to close */}
       <div className="absolute inset-0" onClick={onClose} />
 
-      {/* Main Drawer Window */}
-      <div className="relative z-10 flex h-full w-full max-w-lg flex-col bg-white shadow-2xl border-l border-slate-200/80 transition-transform">
-        {/* Header Bar */}
-        <header className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-950 via-indigo-950 to-purple-950 p-4 text-white shadow-md">
+      {/* Main Drawer Window (Chatbase AI Agent Inspired UI) */}
+      <div className="relative z-10 flex h-full w-full max-w-md sm:max-w-lg flex-col bg-slate-50 shadow-2xl border-l border-slate-200 transition-transform">
+        {/* Sleek Dark Header Bar (Chatbase Style) */}
+        <header className="flex items-center justify-between bg-slate-950 p-4 text-white shadow-md border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="relative grid size-10 place-items-center rounded-2xl bg-gradient-to-tr from-purple-500 via-indigo-500 to-cyan-400 text-white shadow-lg shadow-purple-500/30">
-              <Sparkles size={20} className="animate-pulse" />
-              <span className="absolute -bottom-0.5 -right-0.5 flex size-3">
+            <div className="relative grid size-9 place-items-center rounded-xl bg-slate-800 border border-slate-700 text-white shadow-inner">
+              <Bot size={20} className="text-purple-400" />
+              <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-3 rounded-full bg-emerald-500 border-2 border-slate-950" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 border border-slate-950" />
               </span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-black tracking-tight text-white">
-                  Vyapar AI Business Co-Pilot
-                </h2>
-                <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[9px] font-extrabold text-purple-300 border border-purple-400/30">
+                <h2 className="text-sm font-black tracking-tight text-white">Vyapar AI Agent</h2>
+                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] font-extrabold text-purple-300 border border-slate-700">
                   {selectedEngine === "gemini"
-                    ? "Gemini 1.5/2.0"
+                    ? "Gemini 2.0"
                     : selectedEngine === "groq"
                       ? "Groq 70B"
-                      : "DeepSeek R1"}
+                      : "DeepSeek"}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300 font-medium flex items-center gap-1.5 mt-0.5">
+              <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
                 <span>{profile.location || "India"}</span>
                 <span>&bull;</span>
-                <span className="text-emerald-400 font-semibold">Real Business Data</span>
+                <span className="text-emerald-400 font-semibold">Online & Ready</span>
               </p>
             </div>
           </div>
@@ -408,37 +438,37 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
                   ? "bg-amber-400 text-slate-950 border-amber-300 shadow-sm"
                   : "text-amber-300 border-amber-400/30 hover:bg-white/10",
               )}
-              title="Train AI Profile with 5 questions"
+              title="Train AI Profile"
             >
-              <BrainCircuit size={15} />
-              <span className="hidden sm:inline">Train AI</span>
+              <BrainCircuit size={14} />
+              <span className="hidden sm:inline">Train</span>
             </button>
 
             <button
               onClick={() => setShowKeyModal(true)}
-              className="rounded-xl p-2 text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer"
+              className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white transition cursor-pointer"
               title="Select AI Model & Configure Keys"
             >
               <Cpu
-                size={17}
-                className={apiKey || groqApiKey ? "text-amber-400" : "text-slate-300"}
+                size={16}
+                className={apiKey || groqApiKey ? "text-amber-400" : "text-slate-400"}
               />
             </button>
 
             <button
               onClick={handleClearChat}
-              className="rounded-xl p-2 text-slate-300 hover:bg-white/10 hover:text-rose-300 transition cursor-pointer"
+              className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-rose-300 transition cursor-pointer"
               title="Clear Chat History"
             >
-              <Trash2 size={17} />
+              <Trash2 size={16} />
             </button>
 
             <button
               onClick={onClose}
-              className="rounded-xl p-2 text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer ml-1"
+              className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white transition cursor-pointer ml-1"
               aria-label="Close Chat"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </header>
@@ -558,115 +588,109 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
           </div>
         )}
 
-        {/* Chat Messages Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+        {/* Chat Messages Body (Chatbase Soft White/Grey Style) */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/70">
           {messages.map((msg) => (
             <div
               key={msg.id}
               className={cn(
-                "flex gap-3 text-xs leading-relaxed max-w-[94%]",
-                msg.from === "user" ? "ml-auto flex-row-reverse" : "mr-auto",
+                "flex flex-col text-xs leading-relaxed max-w-[92%]",
+                msg.from === "user" ? "ml-auto items-end" : "mr-auto items-start",
               )}
             >
-              {/* Avatar Icon */}
-              <div
-                className={cn(
-                  "grid size-8 shrink-0 place-items-center rounded-2xl shadow-sm font-bold text-xs mt-0.5",
-                  msg.from === "user"
-                    ? "bg-gradient-to-tr from-indigo-600 to-violet-600 text-white"
-                    : "bg-gradient-to-tr from-purple-600 to-indigo-600 text-white",
-                )}
-              >
-                {msg.from === "user" ? <User size={15} /> : <Bot size={15} />}
-              </div>
-
               {/* Message Bubble Card */}
               <div
                 className={cn(
-                  "group relative rounded-2xl p-4 shadow-xs transition-all",
+                  "relative rounded-2xl p-4 shadow-xs transition-all text-xs sm:text-sm",
                   msg.from === "user"
-                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-tr-xs"
-                    : "bg-white text-slate-900 border border-slate-200/90 rounded-tl-xs shadow-slate-200/50",
+                    ? "bg-slate-900 text-white rounded-tr-xs shadow-slate-900/10 font-medium"
+                    : "bg-white text-slate-900 border border-slate-200/80 rounded-tl-xs shadow-slate-200/40",
                 )}
               >
-                {/* AI Badge & Message Tools */}
-                {msg.from === "ai" && (
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles size={13} className="text-purple-600" />
-                      <span className="font-extrabold text-[10px] uppercase tracking-wider text-purple-700">
-                        VYAPAR AI &bull; {msg.modelUsed || "Intelligence Engine"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleSpeak(msg.id, msg.text)}
-                        className={cn(
-                          "rounded-lg p-1 transition cursor-pointer",
-                          speakingId === msg.id
-                            ? "bg-purple-100 text-purple-700 animate-pulse"
-                            : "text-slate-400 hover:text-purple-600 hover:bg-slate-100",
-                        )}
-                        title="Listen to advice (Text-to-Speech)"
-                      >
-                        {speakingId === msg.id ? <VolumeX size={13} /> : <Volume2 size={13} />}
-                      </button>
-
-                      <button
-                        onClick={() => handleCopy(msg.id, msg.text)}
-                        className="rounded-lg p-1 text-slate-400 hover:text-purple-600 hover:bg-slate-100 transition cursor-pointer"
-                        title="Copy to clipboard"
-                      >
-                        {copiedId === msg.id ? (
-                          <Check size={13} className="text-emerald-600" />
-                        ) : (
-                          <Copy size={13} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Formatted Content */}
-                <div className="prose prose-xs max-w-none text-xs leading-relaxed space-y-2">
+                <div className="prose prose-xs max-w-none text-xs sm:text-sm leading-relaxed space-y-2">
                   <FormattedMessage text={msg.text} isUser={msg.from === "user"} />
                 </div>
+              </div>
 
-                {/* Timestamp */}
-                <div
-                  className={cn(
-                    "mt-2 text-[9px] font-semibold text-right opacity-70",
-                    msg.from === "user" ? "text-indigo-100" : "text-slate-400",
-                  )}
-                >
-                  {msg.timestamp}
-                </div>
+              {/* Message Footer & Feedback Controls (Chatbase Style) */}
+              <div
+                className={cn(
+                  "mt-1.5 flex items-center gap-2 text-[10px] text-slate-400 px-1 font-medium",
+                  msg.from === "user" ? "justify-end" : "justify-start",
+                )}
+              >
+                <span>{msg.timestamp}</span>
+
+                {msg.from === "ai" && (
+                  <div className="flex items-center gap-1.5 ml-2 border-l border-slate-200 pl-2">
+                    <button
+                      onClick={() => handleFeedback(msg.id, "up")}
+                      className={cn(
+                        "p-1 rounded-md transition cursor-pointer hover:bg-slate-200/60",
+                        msg.feedback === "up" ? "text-emerald-600 font-bold" : "text-slate-400",
+                      )}
+                      title="Thumbs Up - Good Response"
+                    >
+                      <ThumbsUp size={12} />
+                    </button>
+                    <button
+                      onClick={() => handleFeedback(msg.id, "down")}
+                      className={cn(
+                        "p-1 rounded-md transition cursor-pointer hover:bg-slate-200/60",
+                        msg.feedback === "down" ? "text-rose-600 font-bold" : "text-slate-400",
+                      )}
+                      title="Thumbs Down - Needs Improvement"
+                    >
+                      <ThumbsDown size={12} />
+                    </button>
+                    <button
+                      onClick={() => handleCopy(msg.id, msg.text)}
+                      className="p-1 text-slate-400 hover:text-slate-700 transition cursor-pointer rounded-md"
+                      title="Copy advice"
+                    >
+                      {copiedId === msg.id ? (
+                        <Check size={12} className="text-emerald-600" />
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleSpeak(msg.id, msg.text)}
+                      className={cn(
+                        "p-1 rounded-md transition cursor-pointer",
+                        speakingId === msg.id
+                          ? "text-purple-600 animate-pulse"
+                          : "text-slate-400 hover:text-purple-600",
+                      )}
+                      title="Text-to-Speech Audio"
+                    >
+                      {speakingId === msg.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
 
           {/* Typing Indicator when AI is thinking */}
           {isThinking && (
-            <div className="flex gap-3 items-center mr-auto max-w-[85%]">
-              <div className="grid size-8 shrink-0 place-items-center rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-sm">
-                <Bot size={15} />
-              </div>
+            <div className="flex flex-col items-start mr-auto max-w-[85%] space-y-1">
               <div className="rounded-2xl rounded-tl-xs bg-white border border-slate-200 p-3.5 shadow-xs flex items-center gap-2">
-                <span className="text-xs font-bold text-purple-700">
-                  AI Co-Pilot is generating quality analysis...
+                <span className="text-xs font-bold text-slate-700">
+                  Vyapar AI Agent is replying...
                 </span>
                 <div className="flex gap-1">
                   <span
-                    className="size-1.5 rounded-full bg-purple-500 animate-bounce"
+                    className="size-1.5 rounded-full bg-slate-400 animate-bounce"
                     style={{ animationDelay: "0ms" }}
                   />
                   <span
-                    className="size-1.5 rounded-full bg-purple-500 animate-bounce"
+                    className="size-1.5 rounded-full bg-slate-400 animate-bounce"
                     style={{ animationDelay: "150ms" }}
                   />
                   <span
-                    className="size-1.5 rounded-full bg-purple-500 animate-bounce"
+                    className="size-1.5 rounded-full bg-slate-400 animate-bounce"
                     style={{ animationDelay: "300ms" }}
                   />
                 </div>
@@ -677,32 +701,8 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Prompt Chips */}
-        <div className="border-t border-slate-100 bg-white p-3 space-y-2">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1">
-            Quality Prompts for {profile.categoryName || "Business"}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {[
-              "🏛️ Govt Loans & 35% Subsidies",
-              "💰 Detailed Unit Economics Math",
-              "📦 Wholesale Sourcing & Stocking",
-              "📍 Footfall & Location Risk",
-            ].map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => setInput(chip)}
-                className="rounded-xl border border-purple-200/80 bg-purple-50/70 px-2.5 py-1 text-[11px] font-bold text-purple-800 hover:bg-purple-100 hover:border-purple-300 transition cursor-pointer"
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Action Advisor Prompt Chips */}
-        <div className="bg-slate-100/80 border-t border-slate-200/80 p-2 overflow-x-auto no-scrollbar flex items-center gap-1.5 shrink-0">
+        {/* Quick Suggestion Chips (Chatbase Style) */}
+        <div className="bg-slate-100/90 border-t border-slate-200/80 p-2.5 overflow-x-auto no-scrollbar flex items-center gap-1.5 shrink-0">
           {[
             {
               label: "🎯 Scale Profit to ₹50k",
@@ -729,53 +729,91 @@ Task: Provide clear, non-generic, practical, hyper-local business advice. Cite t
               key={chip.label}
               type="button"
               onClick={() => handleSubmit(undefined, chip.prompt)}
-              className="shrink-0 rounded-xl bg-white border border-slate-200 hover:border-purple-300 hover:bg-purple-50/70 hover:text-purple-700 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition shadow-2xs cursor-pointer flex items-center gap-1"
+              className="shrink-0 rounded-xl bg-white border border-slate-200/90 hover:border-purple-300 hover:bg-purple-50/70 hover:text-purple-700 px-3 py-1.5 text-xs font-bold text-slate-700 transition shadow-2xs cursor-pointer flex items-center gap-1"
             >
               {chip.label}
             </button>
           ))}
         </div>
 
-        {/* Input Form Footer Bar */}
+        {/* Attached File Indicator Badge */}
+        {attachedFile && (
+          <div className="bg-purple-50 border-t border-purple-200 px-4 py-1.5 text-xs text-purple-900 flex items-center justify-between font-bold">
+            <span className="flex items-center gap-1.5 truncate">
+              <FileText size={14} className="text-purple-600" />
+              <span>Attached Document: {attachedFile}</span>
+            </span>
+            <button
+              onClick={() => setAttachedFile(null)}
+              className="text-purple-600 hover:text-purple-900 p-0.5"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Floating Input Shell (Chatbase Style with Attachment & Mic) */}
         <form
           onSubmit={(e) => handleSubmit(e)}
           className="border-t border-slate-200 bg-white p-3 flex items-center gap-2"
         >
+          {/* Hidden File Input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+            accept=".pdf,.doc,.docx,.jpg,.png,.txt"
+          />
+
+          {/* Attachment Paperclip Button */}
           <button
             type="button"
-            onClick={startVoiceInput}
-            className={cn(
-              "grid size-10 shrink-0 place-items-center rounded-2xl transition cursor-pointer border",
-              isListening
-                ? "bg-rose-100 text-rose-600 border-rose-300 animate-pulse"
-                : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900",
-            )}
-            title="Voice Speech Input"
+            onClick={() => fileInputRef.current?.click()}
+            className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition cursor-pointer"
+            title="Attach business document or photo"
           >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            <Paperclip size={17} />
           </button>
 
+          {/* Text Input Container */}
           <div className="relative flex-1">
             <input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={`Ask AI any question about ${profile.idea || "business"} in ${profile.location || "your area"}...`}
-              className="w-full h-10 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-xs font-medium text-slate-900 outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-500/20 transition"
+              placeholder="Ask me anything about your business..."
+              className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-xs sm:text-sm font-medium text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-1 focus:ring-slate-900 transition placeholder:text-slate-400"
             />
+
+            {/* Voice Input Mic Button inside input */}
+            <button
+              type="button"
+              onClick={startVoiceInput}
+              className={cn(
+                "absolute right-2 top-1/2 -translate-y-1/2 grid size-7 place-items-center rounded-lg transition cursor-pointer",
+                isListening
+                  ? "text-rose-600 animate-pulse bg-rose-50"
+                  : "text-slate-400 hover:text-slate-700",
+              )}
+              title="Voice Speech Input"
+            >
+              {isListening ? <MicOff size={15} /> : <Mic size={15} />}
+            </button>
           </div>
 
+          {/* High Contrast Send Button (Chatbase Style) */}
           <button
             type="submit"
             disabled={!input.trim() || isThinking}
             className={cn(
-              "grid size-10 shrink-0 place-items-center rounded-2xl text-white shadow-md transition cursor-pointer",
+              "grid size-10 shrink-0 place-items-center rounded-xl text-white shadow-md transition cursor-pointer",
               input.trim() && !isThinking
-                ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 shadow-purple-500/25"
+                ? "bg-slate-950 hover:bg-slate-800 shadow-slate-900/20"
                 : "bg-slate-300 cursor-not-allowed opacity-60",
             )}
           >
-            <Send size={16} />
+            <Send size={15} />
           </button>
         </form>
       </div>
@@ -801,7 +839,7 @@ function FormattedMessage({ text, isUser }: { text: string; isUser: boolean }) {
           return (
             <h4
               key={i}
-              className="font-black text-slate-900 text-xs mt-2.5 text-purple-900 border-b border-purple-100 pb-1"
+              className="font-black text-slate-900 text-xs sm:text-sm mt-2 text-slate-950 border-b border-slate-100 pb-1"
             >
               {trimmed.replace(/^#+\s*/, "")}
             </h4>
@@ -812,8 +850,11 @@ function FormattedMessage({ text, isUser }: { text: string; isUser: boolean }) {
         if (trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*")) {
           const content = trimmed.replace(/^[•\-*]\s*/, "");
           return (
-            <div key={i} className="flex items-start gap-1.5 text-xs text-slate-700 pl-1">
-              <span className="text-purple-600 font-bold mt-0.5">•</span>
+            <div
+              key={i}
+              className="flex items-start gap-1.5 text-xs sm:text-sm text-slate-800 pl-1"
+            >
+              <span className="text-slate-950 font-bold mt-0.5">•</span>
               <span dangerouslySetInnerHTML={{ __html: parseBoldAndLinks(content) }} />
             </div>
           );
@@ -824,9 +865,9 @@ function FormattedMessage({ text, isUser }: { text: string; isUser: boolean }) {
           return (
             <div
               key={i}
-              className="flex items-start gap-1.5 text-xs text-slate-800 pl-1 font-medium"
+              className="flex items-start gap-1.5 text-xs sm:text-sm text-slate-800 pl-1 font-medium"
             >
-              <span className="font-bold text-indigo-600">{trimmed.match(/^\d+\./)?.[0]}</span>
+              <span className="font-bold text-slate-950">{trimmed.match(/^\d+\./)?.[0]}</span>
               <span
                 dangerouslySetInnerHTML={{
                   __html: parseBoldAndLinks(trimmed.replace(/^\d+\.\s*/, "")),
@@ -839,7 +880,7 @@ function FormattedMessage({ text, isUser }: { text: string; isUser: boolean }) {
         return (
           <p
             key={i}
-            className="text-xs leading-relaxed"
+            className="text-xs sm:text-sm leading-relaxed"
             dangerouslySetInnerHTML={{ __html: parseBoldAndLinks(trimmed) }}
           />
         );
@@ -862,17 +903,58 @@ function parseBoldAndLinks(str: string): string {
   return parsed;
 }
 
-// Deep Analytical Expert AI Engine for High Quality Response Generation
-function generateDeepAnalyticalResponse(
+// Conversational AI Engine with Smart Intent Interception (Zero Repetitive Messages)
+function generateConversationalResponse(
   userQuery: string,
   profile: UserRecord,
   lang: string,
 ): string {
-  const q = userQuery.toLowerCase();
-  const loc = profile.location || "your local area";
+  const q = userQuery.trim().toLowerCase();
+  const cleanQ = q.replace(/[^a-z0-9 ]/g, "");
+  const loc = profile.location || "your local market";
   const biz = profile.idea || "your micro business";
   const cat = (profile.categoryName || "").toLowerCase();
   const capital = Number(profile.capital || 50000);
+  const name = profile.fullName ? profile.fullName.split(" ")[0] : "Entrepreneur";
+
+  // 1. Natural Greeting Intent Interception ("hi", "hello", "hey", "namaste", "hie")
+  const isGreeting =
+    cleanQ === "hi" ||
+    cleanQ === "hello" ||
+    cleanQ === "hey" ||
+    cleanQ === "hie" ||
+    cleanQ === "namaste" ||
+    cleanQ === "good morning" ||
+    cleanQ === "good evening" ||
+    cleanQ === "good afternoon" ||
+    cleanQ === "yo" ||
+    cleanQ === "sup";
+
+  if (isGreeting) {
+    return `Hey ${name}! 👋 What can I help you with today?\n\nI have your active business profile loaded:\n• **Idea**: ${biz} (${profile.categoryName || "Retail Shop"})\n• **Location**: ${loc}\n• **Capital**: ₹${capital.toLocaleString("en-IN")}\n\nAsk me about **PM Mudra loans**, **unit economics profit math**, **wholesale mandis**, or **mandatory permits**!`;
+  }
+
+  // 2. Introduction Intent Interception ("who are you", "what can you do")
+  const isIntro =
+    cleanQ.includes("who are you") ||
+    cleanQ.includes("what can you do") ||
+    cleanQ.includes("what is your name") ||
+    cleanQ.includes("help me");
+
+  if (isIntro) {
+    return `I am your **Vyapar AI Business Agent** ⚡!\n\nI provide hyper-local advice for micro-entrepreneurs in India:\n• **Govt Credit & Subsidies**: Match your shop with PM Mudra, PMEGP, and CGTMSE loans.\n• **Unit Economics**: Calculate daily break-even sales and profit margins.\n• **Wholesale Sourcing**: Find high-margin stock in nearby mandis.\n• **Permits**: Step-by-step guidance for FSSAI, Udyam MSME, and GST registrations.`;
+  }
+
+  // 3. Gratitude Intent Interception ("thanks", "thank you")
+  const isThanks =
+    cleanQ.includes("thanks") ||
+    cleanQ.includes("thank you") ||
+    cleanQ.includes("dhanyawad") ||
+    cleanQ.includes("great thanks");
+
+  if (isThanks) {
+    return `You're very welcome, ${name}! 🙏\n\nI am always here 24/7 whenever you need more advice for your **${biz}**. Good luck with your business!`;
+  }
 
   // Extract query keywords for dynamic topic synthesis
   const isLoan =
@@ -926,11 +1008,11 @@ function generateDeepAnalyticalResponse(
     q.includes("tax") ||
     q.includes("compliance");
 
-  // 1. LOAN & GOVERNMENT SCHEMES ANALYSIS
+  // 4. LOAN & GOVERNMENT SCHEMES ANALYSIS
   if (isLoan) {
     return `### 🏛️ Verified Government Scheme & Credit Analysis (${loc})
 
-Based on your business context (**${biz}** in **${loc}** with ₹${capital.toLocaleString("en-IN")} capital), here is your matched credit portfolio:
+Based on your business context (**${biz}** in **${loc}** with ₹${capital.toLocaleString("en-IN")} capital):
 
 1. **PM MUDRA Yojana (PMMY)**:
    • **Shishu Tier (Up to ₹50,000)**: 0% collateral, 0% processing fee. Best for initial stock purchase.
@@ -941,13 +1023,10 @@ Based on your business context (**${biz}** in **${loc}** with ₹${capital.toLoc
    • **Requirement**: Submit a 1-page Project Report (DPR). Apply on [kviconline.gov.in](https://www.kviconline.gov.in/pmegpeportal/).
 
 3. **Udyam MSME Portal (Mandatory Pre-requisite)**:
-   • Get your instant lifetime certificate on [udyamregistration.gov.in](https://udyamregistration.gov.in) (100% Free).
-
-4. **CGTMSE Credit Guarantee**:
-   • Provides 100% bank guarantee for expansion loans up to ₹2 Crore without collateral property.`;
+   • Get your instant lifetime certificate on [udyamregistration.gov.in](https://udyamregistration.gov.in) (100% Free).`;
   }
 
-  // 2. FINANCIAL MATH & UNIT ECONOMICS ANALYSIS
+  // 5. FINANCIAL MATH & UNIT ECONOMICS ANALYSIS
   if (isFinance) {
     const estRent = Math.round(capital * 0.2);
     const estStock = Math.round(capital * 0.5);
@@ -956,7 +1035,7 @@ Based on your business context (**${biz}** in **${loc}** with ₹${capital.toLoc
 
     return `### 📊 Real Unit Economics & Cashflow Analysis for ${biz}
 
-Here is the exact financial breakdown tailored for **${biz}** in **${loc}**:
+Financial breakdown tailored for **${biz}** in **${loc}**:
 
 ### Capital Allocation (₹${capital.toLocaleString("en-IN")} Total)
 • **Initial Inventory & Stock (50%)**: ₹${estStock.toLocaleString("en-IN")}
@@ -965,114 +1044,49 @@ Here is the exact financial breakdown tailored for **${biz}** in **${loc}**:
 
 ### Operational Profit Math
 • **Expected Gross Profit Margin**: **35% – 48%**
-• **Estimated Monthly Overhead**: ₹${estRent.toLocaleString("en-IN")} (Rent) + ₹3,500 (Electricity & Staff)
-• **Target Daily Sales Volume**: **~${dailyTargetUnits} items/day** to achieve net positive daily profit
-• **Estimated Payback Period**: **3.8 – 4.5 Months** to fully recoup initial capital
-
-💡 **Profit Scaling Rule**: Maintain 60-day supplier credit terms once regular orders begin!`;
+• **Target Daily Sales Volume**: **~${dailyTargetUnits} items/day** to stay net profitable
+• **Payback Period**: **3.8 – 4.5 Months** to fully recover capital`;
   }
 
-  // 3. INVENTORY & WHOLESALE SOURCING
+  // 6. INVENTORY & WHOLESALE SOURCING
   if (isStock) {
-    if (
-      cat.includes("mobile") ||
-      cat.includes("electronics") ||
-      biz.toLowerCase().includes("mobile")
-    ) {
-      return `### 📦 Mobile & Electronics Sourcing & Stocking Intel (${loc})
+    return `### 📦 Wholesale Inventory & Sourcing Strategy for ${biz}
 
-### ✅ High-Margin Fast Moving Stock (DO STOCK)
-1. **5G Budget Smartphones (< ₹12,000)**: Massive upgrade cycle in tier-2/3 cities in 2026.
-2. **65W & 100W GaN Fast Chargers**: New phones ship without adapters; high impulse buy.
-3. **Tempered Glass & Back Cover Combos**: 60% gross margin at counter.
-
-### ❌ Dead Inventory Risks (DO NOT STOCK)
-1. **4G Phones > ₹14,000**: Buyers strictly demand 5G at this price segment.
-2. **Unbranded TWS Earbuds without Replacement Warranty**: High defect return rate damages shop reputation.
-
-💡 **Profit Hack**: Offer a ₹350 Screen Protection + Premium Case Bundle (costs ₹110 wholesale = +₹240 profit).`;
-    }
-
-    if (
-      cat.includes("grocery") ||
-      cat.includes("kirana") ||
-      biz.toLowerCase().includes("grocery")
-    ) {
-      return `### 🌾 Kirana & Grocery Sourcing Strategy (${loc})
-
-### ✅ High Demand Staples (DO STOCK)
-1. **250g / 500g Packaged Spices & Oils**: High cash rotation.
-2. **Daily Morning Dairy & Bread**: Essential daily traffic magnet.
-3. **UPI Payment Soundbox**: Eliminates small change delay during peak rush.
-
-### ❌ Cashflow Traps (AVOID)
-1. **Unsealed 25kg Bulk Grain Bags**: Moisture spoilage risk without climate control.
-2. **Slow-moving Imported Confectionery**: High capital lockup.
-
-💡 **Local Growth Hack**: Create a ₹99 Hosteller & Bachelor Weekly Cooking Combo!`;
-    }
-
-    return `### 📦 Inventory & Wholesale Sourcing Strategy for ${biz}
-
-### Sourcing & Stock Guidelines for ${loc}:
+### Sourcing Guidelines for ${loc}:
 • **Fast-Rotating Stock (70%)**: Focus on items with under 14-day turnover cycle.
 • **High-Margin Impulse Add-ons (30%)**: Place near UPI billing stand for 35%+ gross margin.
-• **Avoid**: Sourcing non-returnable unbranded goods without 6-month warranty.
-
-💡 **Wholesale Tip**: Source directly from regional APMC / Wholesale Mandis within 50km of ${loc} to save 8-12% transport cost!`;
+• **Wholesale Mandis**: Source directly from regional APMC markets within 50km of ${loc} to save 8-12% transport costs!`;
   }
 
-  // 4. LICENSING & LEGAL COMPLIANCE
+  // 7. LICENSING & LEGAL COMPLIANCE
   if (isLegal) {
     return `### 📋 Legal Compliance & Official Registrations for ${biz}
 
-Here are the mandatory legal approvals required in **${loc}**:
+Mandatory legal approvals required in **${loc}**:
 
-1. **Udyam MSME Certificate**:
-   • **Fee**: 100% Free (₹0 Govt Fee)
-   • **Portal**: [udyamregistration.gov.in](https://udyamregistration.gov.in)
-   • **Time**: 15 minutes online with Aadhaar OTP
-
-2. **FSSAI Food License (For Food/Snack setups)**:
-   • **Fee**: ₹100/year for turnover < ₹12 Lakh
-   • **Portal**: [foscos.fssai.gov.in](https://foscos.fssai.gov.in)
-
-3. **Shop & Establishment Act (Gumasta License)**:
-   • Applied at local Municipal Corporation / Gram Panchayat office.
-
-4. **GSTIN Registration**:
-   • Mandatory only if turnover exceeds ₹40 Lakh (Goods) or ₹20 Lakh (Services). Register free at [gst.gov.in](https://www.gst.gov.in).`;
+1. **Udyam MSME Certificate**: Free registration on [udyamregistration.gov.in](https://udyamregistration.gov.in) in 15 minutes.
+2. **FSSAI Food License**: ₹100/year basic registration for food setups on [foscos.fssai.gov.in](https://foscos.fssai.gov.in).
+3. **GSTIN Registration**: Mandatory only if turnover exceeds ₹40 Lakh for Goods or ₹20 Lakh for Services ([gst.gov.in](https://www.gst.gov.in)).`;
   }
 
-  // 5. LOCATION & COMPETITOR DENSITY
+  // 8. LOCATION & COMPETITOR DENSITY
   if (isLocation) {
     return `### 📍 Location & Competitor Density Analysis (${loc})
 
-### Footfall & Site Selection Checklist for ${biz}:
-• **Optimal Monthly Rent Budget**: Keep rent under **15%** of projected monthly turnover.
+### Site Selection Guidelines for ${biz}:
+• **Rent Budget**: Keep rent under **15%** of projected monthly turnover.
 • **Peak Traffic Hours**: 11:00 AM – 1:30 PM & 5:30 PM – 8:30 PM in ${loc}.
-• **Competitor Counter-Strategy**:
-  1. Set up instant UPI QR & Soundbox for zero cash change delay.
-  2. Offer WhatsApp pre-ordering for local customer convenience.
-  3. Maintain clean, well-lit storefront display.`;
+• **Competitive Edge**: Set up instant UPI QR & Soundbox for zero cash change delays!`;
   }
 
-  // 6. DEFAULT HYPER-DETAILED BUSINESS CONSULTING REPORT
-  return `### ⚡ Strategic Business Action Plan for ${biz} in ${loc}
+  // 9. DYNAMIC SPECIFIC ANSWER FOR CUSTOM QUESTIONS
+  return `### 💡 Advice for ${biz} in ${loc}
 
-Hello **${profile.fullName || "Entrepreneur"}**! Based on your target market in **${profile.location}** with starting capital of **₹${capital.toLocaleString("en-IN")}**:
+Regarding **"${userQuery}"**:
 
-### Step 1: Capital & Infrastructure Setup
-• Allocate **₹${Math.round(capital * 0.5).toLocaleString("en-IN")}** for fast-moving inventory.
-• Reserve **₹${Math.round(capital * 0.3).toLocaleString("en-IN")}** for cash reserve & shop lease.
+• **Context**: For a **${biz}** in **${loc}** with ₹${capital.toLocaleString("en-IN")} starting capital.
+• **Key Recommendation**: Focus on high-margin fast-moving items, set up UPI digital payments, and apply for zero-collateral **PM Mudra Shishu** loan.
+• **Next Step**: Register your shop for free on [udyamregistration.gov.in](https://udyamregistration.gov.in) to claim government benefits.
 
-### Step 2: Unlock Govt Credit & Subsidies
-• Apply for **PM MUDRA Shishu Loan** (Up to ₹50,000 collateral-free) via [jansamarth.in](https://www.jansamarth.in).
-• Generate free **Udyam MSME Certificate** on [udyamregistration.gov.in](https://udyamregistration.gov.in).
-
-### Step 3: Customer Acquisition & Digital Sales
-• Install UPI Soundbox to speed up billings by 40%.
-• Offer bundled combo deals to increase ticket size by +25%.
-
-What specific area (loans, inventory, pricing, or permits) would you like to dive deeper into?`;
+Would you like detailed calculations for loan application or wholesale sourcing?`;
 }
