@@ -149,9 +149,8 @@ export function PlusBusinessDashboard({
     },
   ];
 
-  const defaultTemplate = festivalTemplates[0];
-  const [selectedTemplate, setSelectedTemplate] = useState(defaultTemplate.id);
-  const [broadcastMsg, setBroadcastMsg] = useState(defaultTemplate.message);
+  const [selectedTemplate, setSelectedTemplate] = useState(festivalTemplates[0]?.id ?? "diwali");
+  const [broadcastMsg, setBroadcastMsg] = useState(festivalTemplates[0]?.message ?? "");
   const [targetAudience, setTargetAudience] = useState("all");
 
   function handleTemplateSelect(tId: string) {
